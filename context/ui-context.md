@@ -11,7 +11,7 @@ Two apps with different jobs, so two different UI personalities:
 
 ## 1. Design tokens (shared, in Tailwind config)
 
-Both apps import the same `tailwind.preset.js` from `frontend/packages/shared`.
+Both apps import the same Tailwind v4 theme file, `@shopdesk/shared/theme.css` (`frontend/packages/shared/src/theme.css`, with tokens in `@theme`, and dark values under `.dark`).
 
 ### Colours
 | Token | Light | Dark | Use |

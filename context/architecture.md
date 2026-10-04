@@ -65,11 +65,11 @@
 | CORS | Flask-CORS, explicit origins | Frontends and APIs are on different subdomains |
 | **Images** | **Cloudinary** (`cloudinary` Python SDK) + Pillow for validation | Free CDN, on-the-fly thumbnails, nothing needs a disk (serverless functions have none) |
 | **Database** | **Neon Postgres** (free tier) | Postgres features we rely on: `FOR UPDATE`, CHECK, JSONB, triggers. Serverless, with branches for dev/prod |
-| Frontend | React 18 + Vite + TypeScript | |
+| Frontend | React 19 + Vite 8 + TypeScript 6 (ESLint 9; typescript-eslint doesn't support TS 7 yet) | |
 | Styling | Tailwind CSS | |
 | Data fetching | TanStack Query + Axios (token from `useAuth().getToken()`) | |
 | Forms | React Hook Form + Zod | |
-| Routing | React Router v6 | |
+| Routing | React Router (latest major, library mode), added in spec 02 | |
 | Charts | Chart.js (react-chartjs-2) | |
 | Tests | pytest (+ local Postgres or a Neon test branch), Vitest, RTL, Playwright later | |
 | Lint/format | ruff + black, ESLint + Prettier | |
@@ -124,7 +124,7 @@ ShopDesk/
 │   └── tests/ unit/ services/ api/
 │
 └── frontend/
-    ├── packages/shared/          # api client (Clerk token), formatINR, types, UI atoms, Tailwind preset
+    ├── packages/shared/          # api client (Clerk token), formatINR, types, UI atoms, Tailwind v4 theme.css
     ├── admin-web/                # ★ React app for Server 1   (vercel.json: SPA rewrite + security headers)
     └── pos-web/                  # ★ React app for Server 2   (vercel.json: SPA rewrite + security headers)
 ```
@@ -397,7 +397,7 @@ Image URLs in responses point straight at Cloudinary's CDN (`https://res.cloudin
 | Scale to zero | Compute suspends after ~5 min idle. Use `pool_pre_ping=True`, `pool_recycle=300` |
 | Serverless pool size | Each Vercel instance keeps its own small pool: `pool_size=2`, `max_overflow=3`. Neon's pooler absorbs many instances. Never use the direct URL from functions |
 | URL prefix | Neon and the Vercel–Neon integration hand out `postgresql://`. `core/config.py` rewrites `postgres://` / `postgresql://` → `postgresql+psycopg://` automatically |
-| Branches | `main` = production, `dev` = development (reset from `main` when you want fresh data). Optional `test` branch, though tests normally use local Postgres for speed |
+| Branches | `main` = production, `dev` = development (reset from `main` when you want fresh data). Tests use a **separate database `shopdesk_test`** in the same Neon project (direct host), which pytest wipes and rebuilds each run. A local Postgres `shopdesk_test` also works |
 | Region | Neon in Singapore (`aws-ap-southeast-1`) and Vercel functions in `sin1` (Singapore). Being in the same region keeps the confirm transaction fast |
 | Storage | Free tier ≈ 0.5 GB per project, plenty for text data. Images are in Cloudinary, not the DB |
 
@@ -429,7 +429,7 @@ When you add a variable, add it to `.env.example`, `core/config.py` and SETUP_GU
 | Database | Neon branch `dev` | Neon branch `main` |
 | Clerk | Development instance (`pk_test_…`) | Production instance (`pk_live_…`) |
 | Cloudinary folder | `shopdesk-dev/products` | `shopdesk/products` |
-| Tests | local Postgres 18 (`shopdesk_test`) | GitHub Actions Postgres service |
+| Tests | Neon database `shopdesk_test` (or local Postgres) | GitHub Actions Postgres service |
 
 ## 12. Platform constraints (Vercel + free tiers) and how the design handles them
 

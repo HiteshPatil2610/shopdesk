@@ -1,0 +1,33 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin-api",
+      "runtimeExecutable": "backend/venv/Scripts/flask.exe",
+      "runtimeArgs": ["--app", "admin_api", "run", "-p", "5001"],
+      "cwd": "backend",
+      "port": 5001
+    },
+    {
+      "name": "pos-api",
+      "runtimeExecutable": "backend/venv/Scripts/flask.exe",
+      "runtimeArgs": ["--app", "pos_api", "run", "-p", "5002"],
+      "cwd": "backend",
+      "port": 5002
+    },
+    {
+      "name": "admin-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "admin-web"],
+      "cwd": "frontend",
+      "port": 5173
+    },
+    {
+      "name": "pos-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "pos-web"],
+      "cwd": "frontend",
+      "port": 5174
+    }
+  ]
+}

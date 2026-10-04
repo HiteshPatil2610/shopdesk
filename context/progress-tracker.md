@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 0 — Planning ✅ → next: **Phase 1, spec 01 (project setup)**
+**Current phase:** Phase 1. Spec 01 ✅ done → next: **spec 02 (Clerk authentication)**
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -10,7 +10,7 @@
 | Phase | Spec | Status | Notes |
 |---|---|---|---|
 | 0 | Context docs | ✅ Done | This folder |
-| 1 | [01 Project setup](specs/01-project-setup.md) | ⬜ Not started | |
+| 1 | [01 Project setup](specs/01-project-setup.md) | ✅ Done | Both APIs + both web apps run against Neon. 36 backend + 9 frontend tests |
 | 1 | [02 Authentication](specs/02-authentication.md) | ⬜ Not started | |
 | 2 | [03 Product management](specs/03-product-management.md) | ⬜ Not started | |
 | 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ⬜ Not started | Needs the owner's final formula (Q1) |
@@ -25,7 +25,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 ## Milestones
 
-- [ ] **M1: Skeleton runs.** Both APIs return `/api/health`, both React apps load, Postgres is migrated (spec 01)
+- [x] **M1: Skeleton runs.** Both APIs return `/api/health`, both React apps load, Postgres is migrated (spec 01)
 - [ ] **M2: Secure login** on both servers with roles (spec 02)
 - [ ] **M3: Catalogue.** Add/edit products with images and auto MP/SP, with everything audited (specs 03–05)
 - [ ] **M4: First sale.** Bill → discount → confirm → stock reduced → audit row (specs 06–07)
@@ -75,6 +75,9 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | **Vercel for everything**: 4 projects (admin-web, pos-web, admin-api, pos-api). Both APIs deploy `backend/`, with `SHOPDESK_SERVER` selecting the app. Functions in `sin1` | Owner's choice. One platform. Seconds-level cold starts | A9, A12, spec 10 |
 | 2026-10-04 | Migrations run from GitHub Actions after CI passes. All migrations backward-compatible (expand → contract) | Vercel has no start command. Code and schema deploy independently | A13 |
 | 2026-10-04 | Upload limit 4 MB + browser-side resize | Vercel function body limit ~4.5 MB | spec 03 |
+| 2026-10-04 | Tests use a separate Neon database `shopdesk_test` (direct host). Local Postgres is optional | Owner chose the zero-password setup | SETUP_GUIDE §5 |
+| 2026-10-04 | Frontend: React 19, Vite 8, Tailwind v4 (shared `theme.css`), TypeScript 6.0, ESLint 9 | TS 7 / ESLint 10 aren't supported by typescript-eslint / jsx-a11y yet | architecture §2 |
+| 2026-10-04 | Flask-SQLAlchemy + Flask-Migrate. Alembic `env.py` always uses the direct URL (NullPool) | Matches the `flask db` commands in the docs. Neon-safe migrations | spec 01 |
 | 2026-10-04 | Upstash Redis for production rate limits | Serverless instances don't share memory | spec 09 |
 | 2026-10-04 | Clerk: Access mode **Invite-only** (renamed from "Restricted"). Session claim `"metadata": "{{user.public_metadata}}"`, with the role read from `metadata.role` (Clerk's documented RBAC pattern) | Matches the current Clerk dashboard and docs | spec 02 §5, SETUP_GUIDE §3.3 |
 
@@ -87,6 +90,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | B3 | Fuzzy product search (pg_trgm) | Low |
 | B4 | Offline mode for POS if the network drops | Low |
 | B5 | ~~Move media to object storage~~ (done by design: Cloudinary) | — |
+| B7 | Verify spec 01 criterion: health check works after 10+ min Neon idle (pre-ping) | Low, check during spec 02 |
 | B6 | Staging environment (git `staging` branch + Neon `staging` branch + scoped Preview env + Clerk allowed origin) | Post-v1 |
 
 ## Session log
@@ -98,3 +102,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude + owner | Switched to the free cloud stack (Neon, Clerk, Cloudinary, Render, Cloudflare Pages). Rewrote architecture, specs 01/02/09/10, SETUP_GUIDE and `.env.example`. Updated specs 03/05/06, standards and AI rules | Owner: create the accounts + fill `.env` (SETUP_GUIDE §3, §7), then start spec 01 |
 | 2026-10-04 | Claude + owner | Added `.gitignore` (secrets, venv, node_modules, dumps, caches), ran `git init -b main`, added remote `origin` → github.com/HiteshPatil2610/shopdesk. Checked that `.env` is ignored. Nothing committed yet | First commit + push (owner's go-ahead), then spec 01 |
 | 2026-10-04 | Claude + owner | Switched hosting from Render + Cloudflare Pages to **Vercel** (4 projects). Updated architecture (§1–3, 9–13, ADRs A9/A12/A13), rewrote spec 10, and updated specs 01/03/09, SETUP_GUIDE, `.env.example`, CLAUDE.md, standards, README and overview | Same as above. Owner: set `MAX_UPLOAD_MB=4` in local `.env` |
+| 2026-10-04 | Claude | **Spec 01 built**: `backend/` (core config/db/errors/money/health, admin_api + pos_api factories, Vercel entry, Alembic baseline applied to Neon dev), `frontend/` (npm workspaces: shared pkg + admin-web + pos-web, Tailwind v4, Vitest), CI workflow, pre-commit, dev.ps1, README. Created Neon DB `shopdesk_test` + set TEST_DATABASE_URL. All checks green locally | Spec 02 (Clerk auth) |

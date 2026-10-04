@@ -1,0 +1,18 @@
+# Runtime dependencies (installed by Vercel and locally). Pinned; bump deliberately.
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.1.3
+psycopg[binary]==3.3.6
+Flask-Migrate==4.1.0
+alembic==1.20.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+PyJWT[crypto]==2.15.1
+clerk-backend-api==7.0.0
+svix==2.6.1
+cloudinary==1.46.2
+Flask-Limiter==4.1.1
+redis==8.1.0
+flask-cors==6.0.5
+pillow==12.3.0
+python-dotenv==1.2.4

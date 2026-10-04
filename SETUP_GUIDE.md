@@ -204,22 +204,32 @@ Docker, Nginx, Gunicorn config and generating your own JWT secrets: Vercel and C
 
 ---
 
-## 5. Local test database
+## 5. Test database
 
-Automated tests create and wipe tables hundreds of times. Doing that on Neon over the internet would be slow, so tests use your **local PostgreSQL 18** (GitHub Actions uses its own throwaway Postgres).
+**What it is:** the automated tests (`pytest`) **wipe their database and rebuild it on every run**, so they must never touch your real data. They use a separate, throwaway database called **`shopdesk_test`**, and `TEST_DATABASE_URL` points to it. The app refuses to run tests on any database whose name doesn't end in `_test`.
 
+### Option A: on Neon (✅ what this project uses, already done on 2026-10-04)
+A database `shopdesk_test` sits in the same Neon project, next to your real `neondb`. It's a completely separate database. `TEST_DATABASE_URL` is your **direct** (non-pooler) Neon URL with the database name changed from `/neondb` to `/shopdesk_test`:
+```ini
+TEST_DATABASE_URL=postgresql+psycopg://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/shopdesk_test?sslmode=require&channel_binding=require
+```
+To recreate it by hand: Neon console → your project → branch `dev` → **Databases → New database** → name `shopdesk_test`, owner `neondb_owner`.
+
+### Option B: local PostgreSQL (faster tests, optional)
+Needs your local `postgres` superuser password (the one you chose when installing PostgreSQL).
 ```powershell
 psql -U postgres -h localhost
 ```
 ```sql
-CREATE ROLE shopdesk WITH LOGIN PASSWORD 'local_test_password';
+CREATE ROLE shopdesk WITH LOGIN PASSWORD 'pick_a_password';
 CREATE DATABASE shopdesk_test OWNER shopdesk ENCODING 'UTF8' TEMPLATE template0;
 \q
 ```
-✅ **Check:** `psql -U shopdesk -h localhost -d shopdesk_test -c "select 1;"`
+Then set `TEST_DATABASE_URL=postgresql+psycopg://shopdesk:pick_a_password@localhost:5432/shopdesk_test`.
 
-> If `psql` isn't recognised, add `C:\Program Files\PostgreSQL\18\bin` to your user PATH and reopen PowerShell.
-> Prefer no local Postgres? Create a Neon branch named `test` and use its URL as `TEST_DATABASE_URL`. It works, just slower.
+✅ **Check (either option):** `cd backend; .\venv\Scripts\pytest -q` shows **0 skipped**.
+
+> GitHub Actions doesn't use either. It starts its own temporary Postgres for every CI run.
 
 ---
 

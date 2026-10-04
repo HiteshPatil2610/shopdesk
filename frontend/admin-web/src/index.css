@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+@import '@shopdesk/shared/theme.css';
+
+@source '../../packages/shared/src';
