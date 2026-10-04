@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from core.media import image_url
-from core.models import Category, Product, StockMovement
+from core.models import Category, Order, Product, StockMovement
 from core.money import money_str
 from core.pricing import margin_pct
 
@@ -98,3 +98,75 @@ def movement_out(m: StockMovement) -> dict[str, Any]:
 
 def page_out(items: list[dict[str, Any]], page: int, page_size: int, total: int) -> dict[str, Any]:
     return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+
+# --- orders (spec 07) ----------------------------------------------------------------
+
+
+def _order_common(o: Order) -> dict[str, Any]:
+    return {
+        "id": o.id,
+        "order_number": o.order_number,
+        "status": o.status,
+        "customer_name": o.customer_name,
+        "customer_phone": o.customer_phone,
+        "cashier_name": o.cashier.display_name if o.cashier else None,
+        "created_at": o.created_at.isoformat() if o.created_at else None,
+        "discount_applied": o.discount_applied,
+        "payment_mode": o.payment_mode,
+        "item_count": o.item_count,
+        "subtotal_mp": money_str(o.subtotal_mp),
+        "discount_amount": money_str(o.discount_amount),
+        "total": money_str(o.total_amount),
+        "reject_reason": o.reject_reason,
+    }
+
+
+def pos_order_out(o: Order) -> dict[str, Any]:
+    """Billing Counter view of an order: built from scratch, no cost or profit (BR-12)."""
+    return {
+        **_order_common(o),
+        "lines": [
+            {
+                "code": i.product_code,
+                "name": i.product_name,
+                "qty": i.quantity,
+                "unit_price": money_str(i.unit_price_charged),
+                "line_total": money_str(i.line_total),
+            }
+            for i in o.items
+        ],
+    }
+
+
+def admin_order_out(o: Order, with_lines: bool = False) -> dict[str, Any]:
+    confirmed = o.status == "confirmed"
+    out = {
+        **_order_common(o),
+        "cashier_id": o.cashier_id,
+        "total_cost": money_str(o.total_cost),
+        "profit": money_str(Decimal(o.total_amount) - Decimal(o.total_cost)) if confirmed else None,
+    }
+    if with_lines:
+        out["lines"] = [
+            {
+                "product_id": i.product_id,
+                "code": i.product_code,
+                "name": i.product_name,
+                "qty": i.quantity,
+                "unit_cost": money_str(i.unit_cost),
+                "unit_mp": money_str(i.unit_mp),
+                "unit_sp": money_str(i.unit_sp),
+                "unit_price": money_str(i.unit_price_charged),
+                "line_total": money_str(i.line_total),
+                "profit": money_str(
+                    (Decimal(i.unit_price_charged) - Decimal(i.unit_cost)) * i.quantity
+                ),
+            }
+            for i in o.items
+        ]
+    return out
+
+
+def receipt_out(o: Order, shop: dict[str, str]) -> dict[str, Any]:
+    return {"shop": shop, "order": pos_order_out(o)}

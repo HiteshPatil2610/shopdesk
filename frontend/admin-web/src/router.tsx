@@ -11,6 +11,9 @@ import { ProductNewPage } from './pages/ProductNewPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditPage } from './pages/AuditPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { StockPage } from './pages/StockPage';
 
 export const router = createBrowserRouter([
   { path: '/sign-in/*', element: <SignInPage appName="Admin Console" /> },
@@ -24,6 +27,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'products', element: <ProductsPage /> },
+      { path: 'stock', element: <StockPage /> },
+      { path: 'orders', element: <OrdersPage /> },
+      { path: 'orders/:id', element: <OrderDetailPage /> },
       {
         path: 'audit',
         element: (

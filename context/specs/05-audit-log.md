@@ -90,12 +90,12 @@ Audit log page with URL-synced filters and a read-only details modal using the e
 - [x] 3. Existing write services record events (auth, users, products, pricing).
 - [x] 4. Viewer API + bounded streamed CSV export with formula protection.
 - [x] 5. Admin table, URL filters, details modal, CSV button and product audit tab.
-- [ ] 5b. Order history endpoint/link when orders are built in spec 07.
+- [x] 5b. Order history endpoint (`/api/orders/{id}/audit`) + link from order detail (spec 07).
 - [x] 6. API/unit/UI tests and meta-test for built catalogue/staff write flows; existing auth/image tests check their events.
 
 ## 11. Acceptance criteria
 - [x] Changing a product's MP creates exactly one `product.update` row with `changes = {"market_price": ["300.00","320.00"]}`, the actor, `source='admin'` and the IP. *(test)*
-- [ ] A sale on POS creates `order.confirm` with customer name, cashier and totals, `source='pos'` (spec 07).
+- [x] A sale on POS creates `order.confirm` with customer name, cashier and totals, `source='pos'` (spec 07).
 - [x] `UPDATE audit_logs SET summary='x'` → error from the trigger (DB test).
 - [x] If a product update fails BR-2, no audit row is written (same transaction). *(test)*
 - [x] Password hashes never appear in any audit row (test searches all rows). *(test)*

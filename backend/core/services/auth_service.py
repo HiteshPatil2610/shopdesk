@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from core.actor import ActorContext, Source
 from core.clerk_auth import ClerkClaims
@@ -38,28 +39,17 @@ def resolve_user(claims: ClerkClaims, source: Source) -> User:
         )
 
     user: User | None = db.session.scalar(select(User).where(User.clerk_user_id == claims.sub))
+    if user is None:
+        try:
+            return _jit_insert(claims, source)
+        except IntegrityError:
+            # Two first requests raced; the other one created the row. Use it.
+            db.session.rollback()
+            user = db.session.scalar(select(User).where(User.clerk_user_id == claims.sub))
+            if user is None:
+                raise
     now = utcnow()
     with transaction():
-        if user is None:
-            user = User(
-                clerk_user_id=claims.sub,
-                username=claims.username,
-                full_name=(claims.name or claims.username or "Unnamed user")[:120],
-                role=claims.role,
-                last_seen_at=now,
-            )
-            db.session.add(user)
-            db.session.flush()
-            audit_service.record(
-                _system_actor(source),
-                "user.synced",
-                "user",
-                user.id,
-                f"First sign-in: {user.display_name} ({user.role})",
-                metadata={"clerk_user_id": claims.sub, "via": "jit"},
-            )
-            return user
-
         new_role: str = claims.role
         new_username = claims.username or user.username
         new_full_name = (claims.name or user.full_name)[:120]
@@ -80,6 +70,30 @@ def resolve_user(claims: ClerkClaims, source: Source) -> User:
             )
         if user.last_seen_at is None or now - user.last_seen_at > LAST_SEEN_THROTTLE:
             user.last_seen_at = now
+    return user
+
+
+def _jit_insert(claims: ClerkClaims, source: Source) -> User:
+    """First sign-in: create the mirror row from the verified token claims."""
+    assert claims.role is not None  # noqa: S101 - checked by resolve_user
+    with transaction():
+        user = User(
+            clerk_user_id=claims.sub,
+            username=claims.username,
+            full_name=(claims.name or claims.username or "Unnamed user")[:120],
+            role=claims.role,
+            last_seen_at=utcnow(),
+        )
+        db.session.add(user)
+        db.session.flush()
+        audit_service.record(
+            _system_actor(source),
+            "user.synced",
+            "user",
+            user.id,
+            f"First sign-in: {user.display_name} ({user.role})",
+            metadata={"clerk_user_id": claims.sub, "via": "jit"},
+        )
     return user
 
 

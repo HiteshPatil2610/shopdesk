@@ -1,16 +1,32 @@
 import {
+  apiErrorCode,
   apiErrorMessage,
   Button,
   formatINR,
-  Modal,
   Spinner,
   type PosProduct,
 } from '@shopdesk/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { useLookup, useQuote } from '../features/cart/api';
+import {
+  useConfirmOrder,
+  useLookup,
+  useQuote,
+  useReceipt,
+  useRejectOrder,
+  type PaymentMode,
+} from '../features/cart/api';
 import { cartReducer, isScan, loadCart, storageKey, validCustomer } from '../features/cart/cart';
 import { useHotkeys } from '../features/cart/useHotkeys';
+import {
+  ConfirmOrderDialog,
+  MyOrdersDialog,
+  ReceiptDialog,
+  RejectOrderDialog,
+} from '../features/orders/OrderDialogs';
 import { ProductPanel } from '../features/products/ProductPanel';
+
+type StockProblem = { code: string; requested: number; available: number };
 
 export function BillingPage() {
   const [cart, dispatch] = useReducer(cartReducer, undefined, loadCart);
@@ -18,7 +34,14 @@ export function BillingPage() {
   const [qty, setQty] = useState('1');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState('');
-  const [dialog, setDialog] = useState<'review' | 'clear' | null>(null);
+  const [dialog, setDialog] = useState<'confirm' | 'reject' | 'mine' | null>(null);
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
+  const [stockProblems, setStockProblems] = useState<Record<string, number>>({});
+  const [notice, setNotice] = useState('');
+  const queryClient = useQueryClient();
+  const confirmOrder = useConfirmOrder();
+  const rejectOrder = useRejectOrder();
+  const receipt = useReceipt(receiptFor);
   const codeInput = useRef<HTMLInputElement>(null);
   const qtyInput = useRef<HTMLInputElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -66,6 +89,7 @@ export function BillingPage() {
       }
       dispatch({
         type: 'ADD',
+        key: crypto.randomUUID(),
         item: {
           code: product.code,
           qty: quantity,
@@ -86,7 +110,54 @@ export function BillingPage() {
       busy.current = false;
     }
   }
+  function startNewOrder() {
+    setReceiptFor(null);
+    setNotice('');
+    nameInput.current?.focus();
+  }
+
+  async function confirm(payment: PaymentMode) {
+    try {
+      const order = await confirmOrder.mutateAsync({ cart, payment });
+      dispatch({ type: 'RESET' });
+      setStockProblems({});
+      setDialog(null);
+      setReceiptFor(order.order_number);
+      void queryClient.invalidateQueries({ queryKey: ['pos-products'] });
+    } catch (reason) {
+      if (apiErrorCode(reason) === 'INSUFFICIENT_STOCK') {
+        // Another counter sold it first: mark the lines, keep the bill, refresh the totals.
+        const details = (
+          reason as { response?: { data?: { error?: { details?: StockProblem[] } } } }
+        ).response?.data?.error?.details;
+        setStockProblems(Object.fromEntries((details ?? []).map((d) => [d.code, d.available])));
+        setDialog(null);
+        void queryClient.invalidateQueries({ queryKey: ['cart-quote'] });
+      }
+    }
+  }
+
+  async function reject(reason: string) {
+    try {
+      const order = await rejectOrder.mutateAsync({ cart, reason });
+      dispatch({ type: 'RESET' });
+      setStockProblems({});
+      setDialog(null);
+      setNotice(`Bill saved as rejected (${order.order_number}).`);
+      nameInput.current?.focus();
+    } catch {
+      /* error shown in the dialog */
+    }
+  }
+
   useHotkeys((event) => {
+    if (receiptFor) {
+      if (event.key === 'n' || event.key === 'N') {
+        event.preventDefault();
+        startNewOrder();
+      }
+      return;
+    }
     if (dialog) return;
     const keys: Record<string, () => void> = {
       F2: () => codeInput.current?.focus(),
@@ -94,10 +165,16 @@ export function BillingPage() {
       F4: () => nameInput.current?.focus(),
       F8: () => dispatch({ type: 'TOGGLE_DISCOUNT' }),
       F9: () => {
-        if (ready) setDialog('review');
+        if (ready) {
+          confirmOrder.reset();
+          setDialog('confirm');
+        }
       },
       Escape: () => {
-        if (cart.items.length) setDialog('clear');
+        if (cart.items.length) {
+          rejectOrder.reset();
+          setDialog('reject');
+        }
       },
     };
     if (keys[event.key]) {
@@ -128,7 +205,17 @@ export function BillingPage() {
         }}
       />
       <section className="flex min-w-0 flex-col gap-5 p-5">
-        <h1 className="text-2xl font-bold">New bill</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">New bill</h1>
+          <Button variant="secondary" size="sm" onClick={() => setDialog('mine')}>
+            My orders today
+          </Button>
+        </div>
+        {notice && (
+          <p role="status" className="rounded-lg bg-success/10 p-3 text-sm text-success">
+            {notice}
+          </p>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium">
             Customer name (required) <kbd>F4</kbd>
@@ -241,7 +328,11 @@ export function BillingPage() {
                 {cart.items.map((item) => {
                   const line = latest?.lines.find((value) => value.code === item.code);
                   const available = line?.available ?? item.available;
-                  const problem = line && line.status !== 'ok';
+                  const reported = stockProblems[item.code];
+                  // A 409 from confirm: only relevant while the bill still asks for more than that.
+                  const soldOut =
+                    reported !== undefined && item.qty > reported ? reported : undefined;
+                  const problem = (line && line.status !== 'ok') || soldOut !== undefined;
                   return (
                     <tr
                       key={item.code}
@@ -260,11 +351,15 @@ export function BillingPage() {
                         </button>
                         {problem && (
                           <span role="alert" className="block text-danger">
-                            {line.status === 'insufficient_stock'
-                              ? `Only ${line.available} left`
-                              : line.status === 'inactive'
-                                ? 'No longer sold'
-                                : 'Product not found'}
+                            {soldOut !== undefined && (!line || line.status === 'ok')
+                              ? `Only ${soldOut} available now`
+                              : !line
+                                ? ''
+                                : line.status === 'insufficient_stock'
+                                  ? `Only ${line.available} left`
+                                  : line.status === 'inactive'
+                                    ? 'No longer sold'
+                                    : 'Product not found'}
                           </span>
                         )}
                       </td>
@@ -355,54 +450,62 @@ export function BillingPage() {
           </dl>
         )}
         <div className="flex justify-between border-t border-border pt-4">
-          <Button variant="danger" disabled={!cart.items.length} onClick={() => setDialog('clear')}>
-            Clear bill <kbd>Esc</kbd>
+          <Button
+            variant="danger"
+            size="lg"
+            disabled={!cart.items.length}
+            onClick={() => {
+              rejectOrder.reset();
+              setDialog('reject');
+            }}
+          >
+            ✕ Reject <kbd className="ml-1 text-xs opacity-80">Esc</kbd>
           </Button>
-          <Button disabled={!ready} onClick={() => setDialog('review')}>
-            Review bill <kbd>F9</kbd>
+          <Button
+            variant="success"
+            size="lg"
+            disabled={!ready}
+            onClick={() => {
+              confirmOrder.reset();
+              setDialog('confirm');
+            }}
+          >
+            ✓ Confirm <kbd className="ml-1 text-xs opacity-80">F9</kbd>
           </Button>
         </div>
         <p className="text-xs text-text-muted">
           F3 Search products · Arrow keys select a line · Delete removes the selected line
         </p>
       </section>
-      <Modal
-        open={dialog === 'clear'}
-        title="Clear this bill?"
-        onClose={() => setDialog(null)}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDialog(null)}>
-              Keep bill
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                dispatch({ type: 'RESET' });
-                setDialog(null);
-                setError('');
-              }}
-            >
-              Clear bill
-            </Button>
-          </>
+      <ConfirmOrderDialog
+        open={dialog === 'confirm'}
+        customer={cart.name.trim()}
+        quote={latest}
+        busy={confirmOrder.isPending}
+        error={
+          confirmOrder.isError && apiErrorCode(confirmOrder.error) !== 'INSUFFICIENT_STOCK'
+            ? apiErrorMessage(confirmOrder.error) +
+              (apiErrorCode(confirmOrder.error) ? '' : ' Your bill is kept. Try again.')
+            : null
         }
-      >
-        <p>The items and customer details in this draft will be cleared.</p>
-      </Modal>
-      <Modal
-        open={dialog === 'review'}
-        title="Review bill"
-        onClose={() => setDialog(null)}
-        footer={<Button onClick={() => setDialog(null)}>Return to bill</Button>}
-      >
-        <p>
-          {cart.name} · {latest ? formatINR(latest.total) : 'Updating…'}
-        </p>
-        <p className="mt-3 text-text-muted">
-          This is a draft. Order saving and payment confirmation are not available yet.
-        </p>
-      </Modal>
+        onCancel={() => setDialog(null)}
+        onConfirm={(payment) => void confirm(payment)}
+      />
+      <RejectOrderDialog
+        open={dialog === 'reject'}
+        busy={rejectOrder.isPending}
+        error={rejectOrder.isError ? apiErrorMessage(rejectOrder.error) : null}
+        onCancel={() => setDialog(null)}
+        onReject={(reason) => void reject(reason)}
+      />
+      <ReceiptDialog
+        orderNumber={receiptFor}
+        receipt={receipt.data}
+        loading={receipt.isPending && receiptFor !== null}
+        error={receipt.isError ? apiErrorMessage(receipt.error) : null}
+        onNewOrder={startNewOrder}
+      />
+      <MyOrdersDialog open={dialog === 'mine'} onClose={() => setDialog(null)} />
     </div>
   );
 }

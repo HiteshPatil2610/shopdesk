@@ -309,3 +309,8 @@ def png_bytes(size: tuple[int, int] = (40, 30), mode: str = "RGB") -> bytes:
     buf = io.BytesIO()
     Image.new(mode, size, (200, 30, 30) if mode == "RGB" else (200, 30, 30, 128)).save(buf, "PNG")
     return buf.getvalue()
+
+
+def pytest_collection_modifyitems(items):  # type: ignore[no-untyped-def]
+    """Tests marked `concurrency` commit for real, so they run after everything else."""
+    items.sort(key=lambda item: item.get_closest_marker("concurrency") is not None)

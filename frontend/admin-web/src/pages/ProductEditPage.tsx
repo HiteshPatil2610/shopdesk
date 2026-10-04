@@ -23,13 +23,15 @@ import { formToPatch, productToForm } from '../features/products/mapping';
 import { PriceSection } from '../features/products/PriceSection';
 import { ProductFields } from '../features/products/ProductFields';
 import { productFormSchema, type ProductFormValues } from '../features/products/schema';
+import { StockAdjustModal } from '../features/orders/StockAdjustModal';
+import { StockHistory } from '../features/orders/StockHistory';
 import { AuditPage } from './AuditPage';
 
 export function ProductEditPage() {
   const id = Number(useParams().id);
   const location = useLocation();
   const product = useProduct(id);
-  const [tab, setTab] = useState<'details' | 'audit'>('details');
+  const [tab, setTab] = useState<'details' | 'stock' | 'audit'>('details');
   // Lives here, not in the form: a save bumps `version`, which remounts the form.
   const [saved, setSaved] = useState(
     Boolean((location.state as { created?: boolean } | null)?.created),
@@ -68,6 +70,13 @@ export function ProductEditPage() {
           Details
         </Button>
         <Button
+          variant={tab === 'stock' ? 'primary' : 'secondary'}
+          aria-pressed={tab === 'stock'}
+          onClick={() => setTab('stock')}
+        >
+          Stock history
+        </Button>
+        <Button
           variant={tab === 'audit' ? 'primary' : 'secondary'}
           aria-pressed={tab === 'audit'}
           onClick={() => setTab('audit')}
@@ -84,6 +93,7 @@ export function ProductEditPage() {
           reload={() => void product.refetch()}
         />
       </div>
+      {tab === 'stock' && <StockHistory productId={id} />}
       {tab === 'audit' && <AuditPage productId={id} />}
     </div>
   );
@@ -97,6 +107,7 @@ type EditFormProps = {
 };
 
 function EditForm({ product, saved, onSaved, reload }: EditFormProps) {
+  const [adjusting, setAdjusting] = useState(false);
   const update = useUpdateProduct(product.id);
   const setActive = useSetProductActive(product.id);
   const replaceImage = useReplaceImage(product.id);
@@ -174,9 +185,9 @@ function EditForm({ product, saved, onSaved, reload }: EditFormProps) {
                   {product.unit}
                 </span>
                 {product.low_stock && <Badge tone="warning">Low stock</Badge>}
-                <span className="text-text-muted">
-                  · Quantity changes go through stock adjustments (coming in spec 07)
-                </span>
+                <Button size="sm" variant="secondary" onClick={() => setAdjusting(true)}>
+                  Adjust stock
+                </Button>
               </div>
             </div>
           </div>
@@ -221,6 +232,7 @@ function EditForm({ product, saved, onSaved, reload }: EditFormProps) {
           version.
         </p>
       </Modal>
+      <StockAdjustModal product={adjusting ? product : null} onClose={() => setAdjusting(false)} />
     </section>
   );
 }

@@ -16,3 +16,4 @@ redis==8.1.0
 flask-cors==6.0.5
 pillow==12.3.0
 python-dotenv==1.2.4
+tzdata==2026.5  # IST dates on Windows (zoneinfo)

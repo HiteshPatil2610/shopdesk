@@ -1,6 +1,6 @@
 # Spec 07 — Orders (Confirm / Reject) & Stock
 
-**Status:** ⬜ Not started · **Depends on:** 05, 06 · **Server(s):** POS (confirm/reject/receipt), Admin (orders view, stock adjust)
+**Status:** ✅ Built (2026-10-05) · **Depends on:** 05, 06 · **Server(s):** POS (confirm/reject/receipt), Admin (orders view, stock adjust)
 
 ## 1. Goal
 When the cashier clicks **Confirm**, the order is saved with a price snapshot, stock is reduced **atomically** (4 − 2 = 2), the stock ledger and audit log are written, and a receipt is shown. **Reject** saves the cart as a rejected order without touching stock. Admins can view orders and adjust stock with a reason.
@@ -73,26 +73,26 @@ Migration `0006_orders`: `orders`, `order_items` (architecture §5.5–5.6), `da
 - **Admin:** Orders list + detail (ui-context §3.6). Stock page: products table with qty and "Adjust" buttons → adjust modal (ui-context §3.5). Product edit page "Stock history" tab lists movements.
 
 ## 8. Tasks
-- [ ] 1. Models + migration (`Order`, `OrderItem`, `DailyCounter`).
-- [ ] 2. `stock_service`: `apply_movement(session, product, change, reason, ref, actor)` (the **only** code that changes `quantity`), `adjust(...)`, `verify()`.
-- [ ] 3. `order_service.confirm` per §6 with locking and idempotency. `reject`. `next_number(kind)`.
-- [ ] 4. POS routes (confirm, reject, receipt, mine).
-- [ ] 5. Admin routes (orders list/detail, stock adjust/movements/verify).
-- [ ] 6. POS UI: confirm dialog, receipt modal + print CSS, reject dialog, 409 handling, idempotency key handling, my-orders drawer.
-- [ ] 7. Admin UI: orders pages, stock page + adjust modal, stock history tab.
-- [ ] 8. Tests, including **concurrency**.
+- [x] 1. Models + migration (`Order`, `OrderItem`, `DailyCounter`).
+- [x] 2. `stock_service`: `apply_movement(session, product, change, reason, ref, actor)` (the **only** code that changes `quantity`), `adjust(...)`, `verify()`.
+- [x] 3. `order_service.confirm` per §6 with locking and idempotency. `reject`. `next_number(kind)`.
+- [x] 4. POS routes (confirm, reject, receipt, mine).
+- [x] 5. Admin routes (orders list/detail, stock adjust/movements/verify).
+- [x] 6. POS UI: confirm dialog, receipt modal + print CSS, reject dialog, 409 handling, idempotency key handling, my-orders drawer.
+- [x] 7. Admin UI: orders pages, stock page + adjust modal, stock history tab.
+- [x] 8. Tests, including **concurrency**.
 
 ## 9. Acceptance criteria
-- [ ] Product with qty 4. Confirm an order for 2 → product qty 2, one `stock_movements(-2, sale, quantity_after=2)`, one order with snapshot prices, one `order.confirm` audit row.
-- [ ] **Concurrency:** product qty 1, two threads confirm qty 1 at the same moment → exactly one 201 and one 409. Final qty 0. Never negative.
-- [ ] Order with 3 lines where line 3 lacks stock → 409 listing line 3. Quantities of lines 1–2 **unchanged**, and no order row.
-- [ ] Sending the same `idempotency_key` twice → one order. The second response is 200 with the same order number.
-- [ ] After a confirmed sale, changing the product's MP in admin doesn't change the old order's totals or receipt.
-- [ ] Reject → order `REJ-…` saved with status rejected. Quantities unchanged. Audit `order.reject` with customer name.
-- [ ] Invoice numbers are sequential per day, and the first order after midnight IST is `…-0001`.
-- [ ] Stock adjust "damage 3" on qty 2 → 422 `NEGATIVE_STOCK`.
-- [ ] `/api/stock/verify` returns no mismatches after the full test suite.
-- [ ] POS order/receipt responses contain no cost or profit fields.
+- [x] Product with qty 4. Confirm an order for 2 → product qty 2, one `stock_movements(-2, sale, quantity_after=2)`, one order with snapshot prices, one `order.confirm` audit row. *(test)*
+- [x] **Concurrency:** product qty 1, two threads confirm qty 1 at the same moment → exactly one 201 and one 409. Final qty 0. Never negative. *(test)*
+- [x] Order with 3 lines where line 3 lacks stock → 409 listing line 3. Quantities of lines 1–2 **unchanged**, and no order row. *(test)*
+- [x] Sending the same `idempotency_key` twice → one order. The second response is 200 with the same order number. *(test)*
+- [x] After a confirmed sale, changing the product's MP in admin doesn't change the old order's totals or receipt. *(test)*
+- [x] Reject → order `REJ-…` saved with status rejected. Quantities unchanged. Audit `order.reject` with customer name. *(test)*
+- [x] Invoice numbers are sequential per day, and the first order after midnight IST is `…-0001`. *(test)*
+- [x] Stock adjust "damage 3" on qty 2 → 422 `NEGATIVE_STOCK`. *(test)*
+- [x] `/api/stock/verify` returns no mismatches after the full test suite. *(test)*
+- [x] POS order/receipt responses contain no cost or profit fields. *(test)*
 
 ## 10. Tests
 - Service: confirm happy path, discount totals, multi-line rollback, idempotency (sequential + racing), reject, invoice numbering across a date boundary (freezegun), adjust types, verify invariant.
@@ -100,6 +100,13 @@ Migration `0006_orders`: `orders`, `order_items` (architecture §5.5–5.6), `da
 - API: roles, receipt access rules, validation, response field exposure.
 - Frontend: 409 marks lines, key reuse on retry, receipt print layout snapshot.
 
-## 11. Open questions
+## 11. Implementation notes (2026-10-05)
+- Invoice/reject numbers come from one atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING` on `daily_counters`, using the IST date (`core/timeutil.py`, `tzdata` pinned for Windows).
+- Sale rows are locked with `SELECT … FOR UPDATE OF products ORDER BY id`. A real two-thread race test (`tests/api/test_concurrency.py`) proves one 201 and one 409 for the last unit. Tests marked `concurrency` commit for real and run last.
+- A first-sign-in race (two requests creating the same user mirror) is handled by retrying the lookup after the unique-key conflict.
+- The POS bill carries its idempotency key from the first line until confirm/reject succeeds. Retries reuse it.
+- The receipt prints via `window.print()` with an 80mm `@media print` sheet (`.receipt-print`).
+
+## 12. Open questions
 - Q7: require a reject reason? Default optional.
 - Should a manager be able to **void** a confirmed order (restores stock)? Proposed as a backlog spec (B1).

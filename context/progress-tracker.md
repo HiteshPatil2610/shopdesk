@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 3. Specs 03–06 built → next: **spec 07 (orders/stock and their audit integration)**. Live five-item billing speed check pending stocked catalogue
+**Current phase:** Phase 3 ✅ (specs 01–07 built) → next: **spec 08 (dashboard & reports)**
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -16,7 +16,7 @@
 | 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ✅ Built | Owner's formula + threshold smoothing + optional SP …10 → …00. Admin browser previews verified |
 | 2 | [05 Audit log](specs/05-audit-log.md) | ✅ Built | Viewer, filters, field diffs, safe CSV export, product history; order events/history follow spec 07 |
 | 3 | [06 POS billing](specs/06-pos-billing.md) | ✅ Built | Server quotes, persisted draft cart, lookup, discount and keyboard UI; timed live five-item check pending |
-| 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ⬜ Not started | |
+| 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ✅ Built | Confirm/reject, receipts, stock adjust, race-tested |
 | 4 | [08 Dashboard & reports](specs/08-dashboard-and-reports.md) | ⬜ Not started | |
 | 4 | [09 Security hardening](specs/09-security-hardening.md) | ⬜ Not started | |
 | 4 | [10 Deployment](specs/10-deployment.md) | ⬜ Not started | |
@@ -28,7 +28,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 - [x] **M1: Skeleton runs.** Both APIs return `/api/health`, both React apps load, Postgres is migrated (spec 01)
 - [x] **M2: Secure login** on both servers with roles (spec 02)
 - [ ] **M3: Catalogue.** Add/edit products with images and auto MP/SP, with everything audited (specs 03–05)
-- [ ] **M4: First sale.** Bill → discount → confirm → stock reduced → audit row (specs 06–07)
+- [x] **M4: First sale.** Bill → discount → confirm → stock reduced → audit row (specs 06–07)
 - [ ] **M5: Owner insights.** Dashboard, low stock, CSV export (spec 08)
 - [ ] **M6: Production-ready.** Hardened, backed up, deployed on Vercel (4 projects) + Neon `main` + Clerk production (specs 09–10)
 
@@ -116,3 +116,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude + owner | Fixed setup issues found in the manual test: partial CLERK_JWT_KEY (now validated at startup + `setup_tools fetch-clerk-key`), empty owner metadata (promote-admin), top-level `role` claim now accepted. Fixed modal focus-jump bug. Owner confirmed everything works | Specs 03 + 04 |
 | 2026-10-04 | Claude | **Specs 03 + 04 built**: owner's pricing formula (pure, 27 unit tests), pricing settings + dry-run apply, products CRUD with categories, barcode, images (Pillow → Cloudinary), optimistic locking, stock ledger opening rows, POS cost-free list/lookup. Admin UI: products list, add/edit with live MP options + manual overrides, pricing rules page. POS product panel. 152+ backend, 47 frontend tests | Owner: fix CLOUDINARY_URL placeholders, try adding products. Next: spec 05 |
 | 2026-10-04 | Claude | Reviewed the interrupted session's work (spec 05 audit viewer + CSV, spec 06 cart/quote/billing UI, pricing x10→x00 + ₹500 smoothing, sp_avoid_ten checkbox): sound overall. Fixed: half-edited product left in the session after a refused price edit (rollback in update/apply), quote now accepts lower-case codes, scan detection checks the Enter gap, hotkey hook subscribes once. Added spec 05 acceptance tests (precise update row + IP, no audit on refused edit, no passwords in audit). 204 backend + 56 frontend tests green. Clerk roles verified: admin/raccoon(manager)/deepa(cashier) | Owner: rotate the 3 passwords shared in chat; timed 5-item keyboard bill once products exist. Next: spec 07 |
+| 2026-10-05 | Claude | **Spec 07 built**: orders + items (price snapshots) + daily counters (migration 0005), confirm with row locks / idempotency / ledger / audit, reject without stock change, receipts (24h cashier rule), my-orders, admin orders list/detail with profit, stock adjust/movements/verify, JIT mirror race fix. POS confirm dialog (payment mode), 409 line marking, reject with reason, 80mm receipt print, New order (N), my orders today. Admin Orders, Order detail, Stock page, Adjust stock + Stock history on products. 232 backend + 63 frontend tests | Owner: try a full sale end-to-end. Next: spec 08 |

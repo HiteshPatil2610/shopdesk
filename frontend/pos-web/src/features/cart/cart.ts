@@ -1,14 +1,22 @@
 export type CartItem = { code: string; qty: number; name: string; available: number };
-export type Cart = { items: CartItem[]; discount: boolean; name: string; phone: string };
+/** `key` is the idempotency key for confirm/reject: created with the first line, reused on retries. */
+export type Cart = {
+  items: CartItem[];
+  discount: boolean;
+  name: string;
+  phone: string;
+  key: string;
+};
 export type Action =
-  | { type: 'ADD'; item: CartItem }
+  | { type: 'ADD'; item: CartItem; key: string }
   | { type: 'SET_QTY'; code: string; qty: number }
   | { type: 'REMOVE'; code: string }
   | { type: 'TOGGLE_DISCOUNT' }
   | { type: 'SET_CUSTOMER'; name: string; phone: string }
   | { type: 'RESET' };
-export const emptyCart: Cart = { items: [], discount: false, name: '', phone: '' };
+export const emptyCart: Cart = { items: [], discount: false, name: '', phone: '', key: '' };
 export const storageKey = 'sd_pos_cart';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function cartReducer(state: Cart, action: Action): Cart {
   switch (action.type) {
@@ -20,6 +28,7 @@ export function cartReducer(state: Cart, action: Action): Cart {
       if (!existing && state.items.length >= 100) return state;
       return {
         ...state,
+        key: state.key || action.key,
         items: existing
           ? state.items.map((item) =>
               item.code === action.item.code ? { ...action.item, qty } : item,
@@ -79,7 +88,9 @@ export function loadCart(): Cart {
     )
       return emptyCart;
     // Prices and quotes are never persisted or trusted on restore.
+    const key = typeof data.key === 'string' && UUID_RE.test(data.key) ? data.key : '';
     return {
+      key,
       name: data.name.slice(0, 120),
       phone: data.phone.slice(0, 10),
       discount: data.discount,
