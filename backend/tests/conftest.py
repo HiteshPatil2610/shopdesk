@@ -238,3 +238,74 @@ def fake_clerk() -> Iterator[FakeGateway]:
     set_gateway(fake)
     yield fake
     set_gateway(None)
+
+
+# --- staff users & headers (specs 03+) ----------------------------------------------
+
+
+@pytest.fixture()
+def staff(dbs):  # type: ignore[no-untyped-def]
+    """One mirror user per role, already in the DB."""
+    from core.models import User
+
+    users = {
+        role: User(clerk_user_id=f"user_{role}", username=role, full_name=role.title(), role=role)
+        for role in ("admin", "manager", "cashier")
+    }
+    dbs.add_all(users.values())
+    dbs.flush()
+    return users
+
+
+@pytest.fixture()
+def as_role(staff, auth_header):  # type: ignore[no-untyped-def]
+    """as_role("manager") → admin-server headers; as_role("cashier", pos=True) → POS headers."""
+
+    def _headers(role: str, pos: bool = False) -> dict[str, str]:
+        return auth_header(
+            sub=f"user_{role}", role=role, username=role, azp=POS_ORIGIN if pos else ADMIN_ORIGIN
+        )
+
+    return _headers
+
+
+# --- fake image store ----------------------------------------------------------------
+
+
+@dataclass
+class FakeMediaStore:
+    uploads: list[tuple[str, int]] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    fail_upload: bool = False
+
+    def upload(self, data: bytes, folder: str) -> str:
+        if self.fail_upload:
+            from core.errors import AppError
+
+            raise AppError("upload failed", code="IMAGE_UPLOAD_FAILED", status=502)
+        public_id = f"{folder}/img{len(self.uploads) + 1}"
+        self.uploads.append((public_id, len(data)))
+        return public_id
+
+    def delete(self, public_id: str) -> None:
+        self.deleted.append(public_id)
+
+
+@pytest.fixture()
+def fake_media() -> Iterator[FakeMediaStore]:
+    from core.media import set_media_store
+
+    store = FakeMediaStore()
+    set_media_store(store)
+    yield store
+    set_media_store(None)
+
+
+def png_bytes(size: tuple[int, int] = (40, 30), mode: str = "RGB") -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new(mode, size, (200, 30, 30) if mode == "RGB" else (200, 30, 30, 128)).save(buf, "PNG")
+    return buf.getvalue()
