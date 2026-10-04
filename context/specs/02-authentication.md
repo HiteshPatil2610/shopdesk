@@ -1,6 +1,6 @@
 # Spec 02 — Authentication & Roles (Clerk)
 
-**Status:** ⬜ Not started · **Depends on:** 01 · **Server(s):** both
+**Status:** 🟨 Built, waiting for the owner's manual sign-in test (task 10) · **Depends on:** 01 · **Server(s):** both
 
 ## 1. Goal
 Only staff accounts the admin has created can use either server. Sign-in, passwords and sessions are handled by **Clerk**. ShopDesk handles **roles** and **which server each role may use**, and keeps a local `users` mirror so every order, product edit and audit row points to a real person.
@@ -70,7 +70,7 @@ def verify_session_token(token: str, authorized_parties: list[str]) -> ClerkClai
 
 ### 7.2 `@require_role(*roles)` (`core/security.py`)
 1. Read `Authorization: Bearer …` and verify (7.1) with this app's authorized parties.
-2. `auth_service.resolve_user(claims)`: look up `users.clerk_user_id`. If missing, fetch the user from the Clerk Backend API and insert (JIT). Refresh role/name if the claims differ. Update `last_seen_at` (throttled to 1/min).
+2. `auth_service.resolve_user(claims)`: look up `users.clerk_user_id`. If missing, insert it **from the verified token claims** (username, name, role), with no Clerk API call, which keeps serverless requests fast. Webhooks fill in the email later. Refresh role/name if the claims differ (audited as `user.synced`). Update `last_seen_at` (throttled to 1/min).
 3. If `is_active` is false → 401 `ACCOUNT_INACTIVE`. If the role isn't allowed → 403 `ROLE_NOT_ALLOWED`, audited as `auth.role_denied` (throttled).
 4. Put an `ActorContext` on `flask.g`.
 
@@ -117,26 +117,26 @@ There are no login, logout or refresh endpoints. The Clerk SDK handles them.
 - Admin **Users page**: table (username, name, role, active, last seen), Add User modal (username, full name, role, temporary password), change role, reset password, ban/unban with confirmation.
 
 ## 10. Tasks
-- [ ] 1. Configure the Clerk development instance per §5. Put the keys in `.env` and the frontend `.env.development.local`.
-- [ ] 2. `User` + `WebhookEvent` models + migration.
-- [ ] 3. `clerk_auth.verify_session_token` + unit tests with a locally generated RSA key pair (no network).
-- [ ] 4. `auth_service.resolve_user` (JIT sync) + `require_role` + `current_actor()`.
-- [ ] 5. `/api/auth/me` on both servers + the route-coverage meta-test.
-- [ ] 6. Webhook endpoint + svix verification + dedupe + tests with signed fixtures.
-- [ ] 7. `user_service` + Users routes (Clerk SDK mocked in tests) + AU-4.
-- [ ] 8. `promote-admin` CLI.
-- [ ] 9. Frontend: ClerkProvider, sign-in page, guard, axios interceptor, UserButton, "wrong app" screen, Users page.
+- [x] 1. Configure the Clerk development instance per §5. Put the keys in `.env` and the frontend `.env.development.local`.
+- [x] 2. `User` + `WebhookEvent` models + migration.
+- [x] 3. `clerk_auth.verify_session_token` + unit tests with a locally generated RSA key pair (no network).
+- [x] 4. `auth_service.resolve_user` (JIT sync) + `require_role` + `current_actor()`.
+- [x] 5. `/api/auth/me` on both servers + the route-coverage meta-test.
+- [x] 6. Webhook endpoint + svix verification + dedupe + tests with signed fixtures.
+- [x] 7. `user_service` + Users routes (Clerk SDK mocked in tests) + AU-4.
+- [x] 8. `promote-admin` CLI.
+- [x] 9. Frontend: ClerkProvider, sign-in page, guard, axios interceptor, UserButton, "wrong app" screen, Users page.
 - [ ] 10. Manual test: create an owner in the Clerk dashboard → promote-admin → create a cashier from the Users page → check the role matrix in both apps.
 
 ## 11. Acceptance criteria
-- [ ] Self sign-up is impossible: the sign-up page shows restricted, and the API rejects users without a role.
+- [x] Self sign-up is impossible: the sign-up page shows restricted, and the API rejects users without a role. *(automated test)*
 - [ ] A cashier signs in to pos-web and can bill. The same cashier signed in to admin-web gets the "can't use Admin Console" screen, and the admin API returns 403.
-- [ ] A token minted for pos-web, sent to admin_api → 401 `TOKEN_WRONG_APP` (`azp` check).
+- [x] A token minted for pos-web, sent to admin_api → 401 `TOKEN_WRONG_APP` (`azp` check). *(automated test)*
 - [ ] Changing a user's role in the Users page takes effect within about a minute in both apps.
 - [ ] Banning a user → their next request fails, and the UI returns to sign-in.
-- [ ] Webhook with a bad signature → 400. The same `svix-id` delivered twice → processed once.
-- [ ] Sign-in, sign-out, user create/role change/ban each produce an audit row.
-- [ ] No Clerk secret key appears in frontend code or bundles (`VITE_` vars contain only the publishable key).
+- [x] Webhook with a bad signature → 400. The same `svix-id` delivered twice → processed once. *(automated test)*
+- [x] Sign-in, sign-out, user create/role change/ban each produce an audit row. *(automated test)*
+- [x] No Clerk secret key appears in frontend code or bundles (`VITE_` vars contain only the publishable key). *(automated test)*
 
 ## 12. Tests
 - Unit: JWT verification (valid, expired, wrong azp, bad signature, missing role).
@@ -144,5 +144,11 @@ There are no login, logout or refresh endpoints. The Clerk SDK handles them.
 - API: parametrised role matrix for every route, webhook signature/dedupe, Users endpoints with the Clerk SDK mocked.
 - Frontend: interceptor adds the header and retries once, guard redirects, wrong-app screen.
 
-## 13. Open questions
+## 13. Implementation notes (2026-10-04)
+- The `audit_logs` table + trigger + `audit_service.record/diff` were built here (migration `0002_users_audit`), so spec 05 only adds the viewer and CSV export.
+- svix 2.x `Webhook.verify()` doesn't return the payload. The handler parses the JSON after verifying.
+- Clerk telemetry is disabled (`telemetry={false}`).
+- Tests: `tests/unit/test_clerk_auth.py`, `tests/api/test_auth.py`, `test_users.py`, `test_webhooks.py`, `test_route_security.py`, `tests/services/test_audit_service.py`.
+
+## 14. Open questions
 - Q2: manager PIN for discount? If yes, add a hashed `discount_pin` to the `users` mirror in a later spec.

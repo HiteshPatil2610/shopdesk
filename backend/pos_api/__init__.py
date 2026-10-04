@@ -7,9 +7,13 @@ from __future__ import annotations
 
 from flask import Flask
 
+from core import models  # noqa: F401  - registers all tables with the metadata
 from core.app_factory import build_base_app
+from core.auth_routes import make_auth_blueprint
 from core.config import Settings
 
 
 def create_app(settings: Settings | None = None) -> Flask:
-    return build_base_app("pos", settings)
+    app = build_base_app("pos", settings)
+    app.register_blueprint(make_auth_blueprint())
+    return app

@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 1. Spec 01 ✅ done → next: **spec 02 (Clerk authentication)**
+**Current phase:** Phase 1. Spec 02 built (🟨 owner sign-in test pending) → next: **spec 03 + 04 (products + pricing)**
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -11,10 +11,10 @@
 |---|---|---|---|
 | 0 | Context docs | ✅ Done | This folder |
 | 1 | [01 Project setup](specs/01-project-setup.md) | ✅ Done | Both APIs + both web apps run against Neon. 36 backend + 9 frontend tests |
-| 1 | [02 Authentication](specs/02-authentication.md) | ⬜ Not started | |
+| 1 | [02 Authentication](specs/02-authentication.md) | 🟨 Built | Owner must do the manual sign-in test (spec 02 task 10). 81 backend + 18 frontend tests green |
 | 2 | [03 Product management](specs/03-product-management.md) | ⬜ Not started | |
 | 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ⬜ Not started | Needs the owner's final formula (Q1) |
-| 2 | [05 Audit log](specs/05-audit-log.md) | ⬜ Not started | |
+| 2 | [05 Audit log](specs/05-audit-log.md) | 🟨 Partly done | Table, trigger and `audit_service` built in spec 02. Viewer + CSV still to do |
 | 3 | [06 POS billing](specs/06-pos-billing.md) | ⬜ Not started | |
 | 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ⬜ Not started | |
 | 4 | [08 Dashboard & reports](specs/08-dashboard-and-reports.md) | ⬜ Not started | |
@@ -78,6 +78,8 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Tests use a separate Neon database `shopdesk_test` (direct host). Local Postgres is optional | Owner chose the zero-password setup | SETUP_GUIDE §5 |
 | 2026-10-04 | Frontend: React 19, Vite 8, Tailwind v4 (shared `theme.css`), TypeScript 6.0, ESLint 9 | TS 7 / ESLint 10 aren't supported by typescript-eslint / jsx-a11y yet | architecture §2 |
 | 2026-10-04 | Flask-SQLAlchemy + Flask-Migrate. Alembic `env.py` always uses the direct URL (NullPool) | Matches the `flask db` commands in the docs. Neon-safe migrations | spec 01 |
+| 2026-10-04 | JIT user mirror is created from the verified token claims (no Clerk API call per first request) | Faster serverless requests. Webhooks add the email | spec 02 §7.2 |
+| 2026-10-04 | Audit table + trigger built in spec 02 (needed for user management), not spec 05 | Avoids a throwaway stub | spec 05 |
 | 2026-10-04 | Upstash Redis for production rate limits | Serverless instances don't share memory | spec 09 |
 | 2026-10-04 | Clerk: Access mode **Invite-only** (renamed from "Restricted"). Session claim `"metadata": "{{user.public_metadata}}"`, with the role read from `metadata.role` (Clerk's documented RBAC pattern) | Matches the current Clerk dashboard and docs | spec 02 §5, SETUP_GUIDE §3.3 |
 
@@ -103,3 +105,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude + owner | Added `.gitignore` (secrets, venv, node_modules, dumps, caches), ran `git init -b main`, added remote `origin` → github.com/HiteshPatil2610/shopdesk. Checked that `.env` is ignored. Nothing committed yet | First commit + push (owner's go-ahead), then spec 01 |
 | 2026-10-04 | Claude + owner | Switched hosting from Render + Cloudflare Pages to **Vercel** (4 projects). Updated architecture (§1–3, 9–13, ADRs A9/A12/A13), rewrote spec 10, and updated specs 01/03/09, SETUP_GUIDE, `.env.example`, CLAUDE.md, standards, README and overview | Same as above. Owner: set `MAX_UPLOAD_MB=4` in local `.env` |
 | 2026-10-04 | Claude | **Spec 01 built**: `backend/` (core config/db/errors/money/health, admin_api + pos_api factories, Vercel entry, Alembic baseline applied to Neon dev), `frontend/` (npm workspaces: shared pkg + admin-web + pos-web, Tailwind v4, Vitest), CI workflow, pre-commit, dev.ps1, README. Created Neon DB `shopdesk_test` + set TEST_DATABASE_URL. All checks green locally | Spec 02 (Clerk auth) |
+| 2026-10-04 | Claude | **Spec 02 built**: users/webhook/audit tables (migration 0002, applied to Neon dev), Clerk JWT verification with `azp` + role checks, JIT mirror, user management via Clerk SDK, signed webhooks, `promote-admin` CLI, default-deny route test. Frontend: Clerk sign-in, AuthGate + wrong-app screen, admin layout + Users page, POS shell + pre-warm. CI actions bumped to v7 | Owner: sign in as `owner` on both apps (SETUP_GUIDE §9.3). Then specs 03 + 04 |

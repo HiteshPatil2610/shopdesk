@@ -1,6 +1,14 @@
-export { apiErrorMessage, createApiClient } from './api';
-export type { ApiErrorBody, HealthResponse } from './api';
+export { apiErrorCode, apiErrorMessage, createApiClient } from './api';
+export type { ApiErrorBody, GetToken, HealthResponse, MeResponse, Role, UserPublic } from './api';
+export { ApiProvider, useApi } from './auth/ApiProvider';
+export { AuthGate, useMe } from './auth/AuthGate';
+export { ClerkConfigError } from './auth/ClerkConfigError';
+export { SignInPage } from './auth/SignInPage';
+export { WrongAppScreen } from './auth/WrongAppScreen';
 export { formatINR } from './money';
+export { Badge, RoleBadge } from './ui/Badge';
 export { Button } from './ui/Button';
+export { SelectField, TextField } from './ui/Field';
 export { HealthBadge } from './ui/HealthBadge';
+export { Modal } from './ui/Modal';
 export { Spinner } from './ui/Spinner';

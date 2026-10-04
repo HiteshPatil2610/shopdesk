@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from core import __version__
 from core.db import db
+from core.security import public
 
 log = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ def make_health_blueprint(server: str) -> Blueprint:
     bp = Blueprint("health", __name__)
 
     @bp.get("/api/health")
+    @public
     def health() -> ResponseReturnValue:
         try:
             db.session.execute(text("SELECT 1"))

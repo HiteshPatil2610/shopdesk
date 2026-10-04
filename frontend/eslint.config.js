@@ -37,6 +37,11 @@ export default tseslint.config(
     },
   },
   {
+    // Library package: exporting hooks next to providers is intentional; fast refresh is an app concern.
+    files: ['packages/shared/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     files: ['**/*.config.{js,ts}', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
   },
