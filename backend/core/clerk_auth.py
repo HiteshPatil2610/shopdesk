@@ -87,8 +87,13 @@ def verify_session_token(
     if not azp or azp.rstrip("/") not in allowed:
         raise AuthError("This sign-in belongs to a different app", code="TOKEN_WRONG_APP")
 
+    # Accept both session-claim styles:
+    #   {"metadata": "{{user.public_metadata}}"}        → claims.metadata.role (Clerk's RBAC guide)
+    #   {"role": "{{user.public_metadata.role}}"}       → claims.role
     metadata = claims.get("metadata")
     role = metadata.get("role") if isinstance(metadata, dict) else None
+    if role is None:
+        role = claims.get("role")
     return ClerkClaims(
         sub=str(claims["sub"]),
         role=role if isinstance(role, str) else None,

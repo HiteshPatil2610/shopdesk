@@ -148,6 +148,8 @@ There are no login, logout or refresh endpoints. The Clerk SDK handles them.
 - The `audit_logs` table + trigger + `audit_service.record/diff` were built here (migration `0002_users_audit`), so spec 05 only adds the viewer and CSV export.
 - svix 2.x `Webhook.verify()` doesn't return the payload. The handler parses the JSON after verifying.
 - Clerk telemetry is disabled (`telemetry={false}`).
+- The role is read from `metadata.role`, **or** from a top-level `role` claim (older setup style), so either session-claim configuration works.
+- `CLERK_JWT_KEY` is validated at startup. `python -m core.setup_tools fetch-clerk-key` fills it in from Clerk's JWKS.
 - Tests: `tests/unit/test_clerk_auth.py`, `tests/api/test_auth.py`, `test_users.py`, `test_webhooks.py`, `test_route_security.py`, `tests/services/test_audit_service.py`.
 
 ## 14. Open questions

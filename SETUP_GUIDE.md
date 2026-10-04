@@ -119,6 +119,7 @@ Use the **plain** `postgresql://` form for psql. It should print `PostgreSQL 17.
    }
    ```
    → **Save**. This is Clerk's documented pattern for role-based access. ShopDesk reads the role from `metadata.role` in the token.
+   *(The older form `{ "role": "{{user.public_metadata.role}}" }` also works. ShopDesk accepts either.)*
    If your plan lets you change the session lifetime on the same page, set it to about 12 hours (one shift).
 6. **Create your owner account**: **Users → Create user** → username `owner`, a strong password, your name.
    Open the user → **Metadata → Public** → set:
@@ -504,7 +505,7 @@ Notes:
 | Rate limits don't seem to apply in production | `RATELIMIT_STORAGE_URI` is still `memory://`. Connect Upstash Redis |
 | 401 `TOKEN_WRONG_APP` | `*_AUTHORIZED_PARTIES` doesn't match the exact frontend origin (scheme + host + port, no trailing slash) |
 | 401 `TOKEN_INVALID` | `CLERK_JWT_KEY` is wrong, or from the other instance (dev vs prod). Check the `\n` formatting (§7.3) |
-| 403 `NO_ROLE_ASSIGNED` | The user has no `public_metadata.role`, or the `"metadata": "{{user.public_metadata}}"` session claim (§3.3 step 5) is missing. Sign out and back in after fixing |
+| 403 `NO_ROLE_ASSIGNED` / "Your account has no ShopDesk role yet" | Most often the user's **public metadata is empty**: Clerk → Users → the user → Metadata → Public → `{"role":"admin"}` → Save (or run `flask --app admin_api promote-admin --clerk-user-id user_…`). Otherwise the user has no `public_metadata.role`, or the `"metadata": "{{user.public_metadata}}"` session claim (§3.3 step 5) is missing. Sign out and back in after fixing |
 | Sign-up form appears, or strangers can create accounts | Clerk Access mode is still **Open**. Set it to **Invite-only** (§3.3 step 7) |
 | Can't find a Clerk setting mentioned here | Clerk renames pages. Use the dashboard's search box, or the direct links in §3.3 (select the ShopDesk app first) |
 | Clerk sign-in widget is blank in production | CSP blocks Clerk domains. See spec 09 task 1, and check the browser console |

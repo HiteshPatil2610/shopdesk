@@ -47,6 +47,21 @@ def test_garbage_token_is_rejected(rsa_public_pem):
     assert exc.value.code == "TOKEN_INVALID"
 
 
+def test_top_level_role_claim_is_accepted(rsa_private_key, rsa_public_pem):
+    """Older setup style: {"role": "{{user.public_metadata.role}}"} in the session token."""
+    import time
+
+    import jwt
+
+    now = int(time.time())
+    token = jwt.encode(
+        {"sub": "user_x", "iat": now, "exp": now + 60, "azp": ADMIN_ORIGIN, "role": "admin"},
+        rsa_private_key,
+        algorithm="RS256",
+    )
+    assert verify_session_token(token, rsa_public_pem, [ADMIN_ORIGIN]).role == "admin"
+
+
 def test_missing_role_gives_none(make_token, rsa_public_pem):
     claims = verify_session_token(make_token(role=None), rsa_public_pem, [ADMIN_ORIGIN])
     assert claims.role is None

@@ -34,6 +34,9 @@ def configure_logging(server: str, level: str) -> None:
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(level.upper())
+    # Third-party chatter (HTTP client internals) drowns out our own DEBUG logs.
+    for noisy in ("httpcore", "httpx", "asyncio", "urllib3", "werkzeug"):
+        logging.getLogger(noisy).setLevel(max(logging.INFO, root.level))
 
 
 def register_request_id(app: Flask) -> None:
