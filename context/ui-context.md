@@ -139,16 +139,19 @@ Filters: [Date range] [User ▾] [Source: All|Admin|POS] [Action ▾] [Entity �
 │ 10 min ago   │ ravi   │ ADMIN  │ product.update  │ P00042 Steel bottle: MP 300 → 320 │
 └──────────────┴────────┴────────┴─────────────────┴───────────────────────────────────┘
 ```
-Clicking a row opens a side drawer with a full **diff view** (field · old in red · new in green), metadata, IP and user agent. Coloured action chips: create = green, update = blue, delete/deactivate = red, order = purple, auth = grey. The page is read-only and has no edit or delete controls.
+“View details” opens a shared modal with a full **diff view** (field · old in red · new in green), metadata, IP and user agent. Action badges distinguish create and deactivate events. Filters are synced to the URL, with date inputs/results shown in IST. Only admins can export CSV; managers can view history. The page has no edit or delete controls. The product page's Audit history section scopes the same viewer to that product, while retaining unsaved detail edits.
 
 ### 3.8 Dashboard
 KPI cards: Today's sales · Today's profit · Orders today (confirmed/rejected) · Low-stock count.
 Charts: Sales last 14 days (bar) · Top 5 products this week (horizontal bar). List: low-stock items with a quick "Restock" button.
 
 ### 3.9 Pricing settings (admin)
-MP markup %, SP markup %, Rounding mode (select), Rounding step. A **live example table** shows costs of ₹10, ₹99, ₹212 and ₹1,499 with the resulting MP/SP. A "Apply to all non-manual products" button opens a confirm dialog showing how many products will change.
+Low/high MP markup % and cost threshold; default/alternate rounding steps and smaller steps for small MPs; SP discount % and downward rounding step. A checkbox enables the SP rule “rounded …10 → …00” from ₹100 upward, respecting the cost floor. Threshold smoothing is explained beside the markup settings. A **live example table** includes costs ₹499/₹500 and ₹700 to demonstrate smoothing and special SP rounding. A "Apply to products" button opens a dry-run confirmation showing affected products before applying saved settings.
 
 ## 4. Billing Counter screen (single page)
+
+### Admin user details
+The admin-only Users page shows username and email independently. “View details” opens a read-only modal containing current full name, username, email, role, active status, app access, ShopDesk ID, Clerk account ID, ShopDesk creation/update timestamps and last seen (IST). Missing identifiers are shown as “Not provided”. Passwords are never stored or returned; the existing Reset password action remains available. These are current details, not a snapshot of the original creation form.
 
 ### 4.1 Layout
 ```

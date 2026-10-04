@@ -15,7 +15,19 @@ bp = Blueprint("users", __name__, url_prefix="/api/users")
 @bp.get("")
 @require_role("admin")
 def list_users() -> ResponseReturnValue:
-    return jsonify({"items": [u.to_public() for u in user_service.list_users()]})
+    return jsonify(
+        {
+            "items": [
+                {
+                    **u.to_public(),
+                    "clerk_user_id": u.clerk_user_id,
+                    "created_at": u.created_at.isoformat() if u.created_at else None,
+                    "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+                }
+                for u in user_service.list_users()
+            ]
+        }
+    )
 
 
 @bp.post("")

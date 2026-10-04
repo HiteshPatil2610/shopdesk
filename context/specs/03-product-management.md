@@ -74,7 +74,7 @@ POS-web: product list panel component (search box, virtualised list if > 200 ite
 - [x] 9. Tests.
 
 ## 9. Acceptance criteria
-- [ ] Creating "Steel bottle", cost 212, qty 14 with no MP/SP → saved with MP 300, SP 265 (default settings), code `P00001`, one `stock_movements` row `+14 initial`, one audit row `product.create`.
+- [ ] Creating "Steel bottle", cost 212, qty 14 with no MP/SP → saved with MP 420, SP 370 (default settings), an auto-generated `P00001`-style code, one `stock_movements` row `+14 initial`, one audit row `product.create`.
 - [ ] Sending a 5 MB file straight to the API (bypassing the browser resize) → 413. A 12 MB phone photo picked in the UI is resized in the browser and uploads fine. Uploading a `.png` that's really a text file → 415.
 - [ ] A valid upload appears in Cloudinary under `shopdesk-dev/products/` (dev), and the product's `thumb_url` loads from `res.cloudinary.com`.
 - [ ] Editing MP to 320 → `mp_is_manual = true`. Changing cost to 230 afterwards → MP stays 320 and SP is recalculated.

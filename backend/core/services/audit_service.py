@@ -15,7 +15,19 @@ from core.db import db
 from core.models import AuditLog
 
 REDACTED = "***"
-DEFAULT_REDACT = frozenset({"password", "new_password", "password_hash"})
+DEFAULT_REDACT = frozenset(
+    {
+        "password",
+        "new_password",
+        "password_hash",
+        "token",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "secret",
+        "api_key",
+    }
+)
 
 
 def _jsonable(value: Any) -> Any:
@@ -33,7 +45,17 @@ def _jsonable(value: Any) -> Any:
 def _redact(data: dict[str, Any] | None, redact: frozenset[str]) -> dict[str, Any] | None:
     if data is None:
         return None
-    return {k: (REDACTED if k in redact else _jsonable(v)) for k, v in data.items()}
+    return {
+        k: (REDACTED if k.lower() in redact else _redact_value(v, redact)) for k, v in data.items()
+    }
+
+
+def _redact_value(value: Any, redact: frozenset[str]) -> Any:
+    if isinstance(value, dict):
+        return _redact(value, redact)
+    if isinstance(value, list | tuple | set):
+        return [_redact_value(item, redact) for item in value]
+    return _jsonable(value)
 
 
 def diff(
@@ -45,7 +67,9 @@ def diff(
         old, new = before.get(key), after.get(key)
         if old != new:
             changes[key] = (
-                [REDACTED, REDACTED] if key in redact else [_jsonable(old), _jsonable(new)]
+                [REDACTED, REDACTED]
+                if key.lower() in redact
+                else [_redact_value(old, redact), _redact_value(new, redact)]
             )
     return changes
 

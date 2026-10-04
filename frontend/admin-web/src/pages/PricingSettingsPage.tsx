@@ -18,9 +18,13 @@ import {
 } from '../features/pricing/api';
 import { useDebounced } from '../lib/useDebounced';
 
-const EXAMPLE_COSTS = ['20', '99', '212', '499', '500', '650', '743', '1499'];
+const EXAMPLE_COSTS = ['20', '99', '212', '499', '500', '650', '700', '743', '1499'];
 
-type FieldDef = { key: keyof PricingSettings; label: string; suffix: string; hint?: string };
+type FieldDef = {
+  key: Exclude<keyof PricingSettings, 'sp_avoid_ten'>;
+  label: string;
+  suffix: string;
+};
 
 const GROUPS: { title: string; fields: FieldDef[] }[] = [
   {
@@ -75,7 +79,7 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
   const [draft, setDraft] = useState<PricingSettings>(saved);
   const [dryRun, setDryRun] = useState<ApplyResult | null>(null);
 
-  const valid = Object.values(draft).every((v) => isMoneyInput(v));
+  const valid = Object.values(draft).every((v) => typeof v === 'boolean' || isMoneyInput(v));
   const debouncedDraft = useDebounced(valid ? draft : null, 400);
   const examples = useExamples(EXAMPLE_COSTS, debouncedDraft);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
@@ -113,6 +117,12 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
               <legend className="mb-1 text-sm font-semibold tracking-wide text-text-muted uppercase">
                 {group.title}
               </legend>
+              {group.title === 'Market price markup' && (
+                <p className="text-xs text-text-muted">
+                  Prices are smoothed at the threshold so the lower markup never causes a price
+                  drop. With the default rules, cost ₹500 gives MP ₹1,000.
+                </p>
+              )}
               {group.fields.map((f) => (
                 <label key={f.key} className="flex items-center justify-between gap-3 text-sm">
                   <span>{f.label}</span>
@@ -129,6 +139,23 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
                   </span>
                 </label>
               ))}
+              {group.title === 'Selling price (discount)' && (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={draft.sp_avoid_ten}
+                    onChange={(e) => setDraft({ ...draft, sp_avoid_ten: e.target.checked })}
+                    className="mt-1"
+                  />
+                  <span>
+                    If the rounded SP ends in 10, drop it to 00
+                    <span className="block text-xs text-text-muted">
+                      ₹1,212 → ₹1,200; ₹1,293 → ₹1,290. Applies from ₹100 upward; SP stays at or
+                      above cost.
+                    </span>
+                  </span>
+                </label>
+              )}
             </fieldset>
           ))}
           {save.isError && (

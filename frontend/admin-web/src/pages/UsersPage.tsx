@@ -11,13 +11,17 @@ import {
 } from '@shopdesk/shared';
 import { useState } from 'react';
 
-import { useSetActive, useUpdateUser, useUsers } from '../features/users/api';
+import { useSetActive, useUpdateUser, useUsers, type AdminUser } from '../features/users/api';
 import { AddUserModal } from '../features/users/AddUserModal';
 import { ResetPasswordModal } from '../features/users/ResetPasswordModal';
 
 const lastSeen = (iso: string | null) =>
   iso
-    ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    ? new Date(iso).toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Asia/Kolkata',
+      })
     : 'Never';
 
 export function UsersPage() {
@@ -26,6 +30,7 @@ export function UsersPage() {
   const updateUser = useUpdateUser();
   const setActive = useSetActive();
   const [adding, setAdding] = useState(false);
+  const [details, setDetails] = useState<AdminUser | null>(null);
   const [resetting, setResetting] = useState<UserPublic | null>(null);
   const [confirming, setConfirming] = useState<UserPublic | null>(null);
   const actionError = updateUser.error ?? setActive.error;
@@ -75,7 +80,10 @@ export function UsersPage() {
                       <p className="font-medium">
                         {u.full_name} {isMe && <span className="text-text-muted">(you)</span>}
                       </p>
-                      <p className="font-mono text-xs text-text-muted">{u.username ?? u.email}</p>
+                      <p className="font-mono text-xs text-text-muted">
+                        Username: {u.username ?? 'Not provided'}
+                      </p>
+                      <p className="text-xs text-text-muted">Email: {u.email ?? 'Not provided'}</p>
                     </td>
                     <td className="px-4 py-3">
                       {isMe ? (
@@ -106,6 +114,9 @@ export function UsersPage() {
                     <td className="px-4 py-3 text-text-muted">{lastSeen(u.last_seen_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => setDetails(u)}>
+                          View details
+                        </Button>
                         <Button size="sm" variant="secondary" onClick={() => setResetting(u)}>
                           Reset password
                         </Button>
@@ -134,6 +145,48 @@ export function UsersPage() {
       </div>
 
       <AddUserModal open={adding} onClose={() => setAdding(false)} />
+      <Modal open={details !== null} title="User details" onClose={() => setDetails(null)}>
+        {details && (
+          <div className="flex flex-col gap-4 text-sm">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3">
+              {[
+                ['Full name', details.full_name],
+                ['Username', details.username ?? 'Not provided'],
+                ['Email', details.email ?? 'Not provided'],
+                ['Role', details.role],
+                ['Status', details.is_active ? 'Active' : 'Deactivated'],
+                [
+                  'App access',
+                  details.role === 'cashier'
+                    ? 'Billing Counter'
+                    : 'Admin Console and Billing Counter',
+                ],
+                ['User ID', String(details.id)],
+                ['Clerk account ID', details.clerk_user_id],
+                [
+                  'Added to ShopDesk (IST)',
+                  details.created_at ? lastSeen(details.created_at) : 'Not available',
+                ],
+                [
+                  'Updated in ShopDesk (IST)',
+                  details.updated_at ? lastSeen(details.updated_at) : 'Not available',
+                ],
+                ['Last seen (IST)', lastSeen(details.last_seen_at)],
+              ].map(([label, value]) => (
+                <div key={label} className="contents">
+                  <dt className="text-text-muted">{label}</dt>
+                  <dd className="break-all font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="rounded-lg bg-bg p-3 text-text-muted">
+              Passwords are managed by Clerk and cannot be viewed. Use Reset password to set a new
+              one. These are the current account details; email may be absent for accounts created
+              with only a username.
+            </p>
+          </div>
+        )}
+      </Modal>
       <ResetPasswordModal user={resetting} onClose={() => setResetting(null)} />
       <Modal
         open={confirming !== null}

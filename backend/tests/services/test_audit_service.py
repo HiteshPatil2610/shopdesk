@@ -24,6 +24,13 @@ def test_diff_none_to_value():
     assert audit_service.diff({}, {"barcode": "890"}) == {"barcode": [None, "890"]}
 
 
+def test_nested_secrets_are_redacted_in_diffs():
+    changes = audit_service.diff(
+        {}, {"account": {"Authorization": "Bearer secret", "items": [{"token": "secret"}]}}
+    )
+    assert changes == {"account": [None, {"Authorization": "***", "items": [{"token": "***"}]}]}
+
+
 @pytest.mark.db
 def test_audit_rows_cannot_be_updated_or_deleted(dbs):
     audit_service.record(ActorContext.system(), "test.event", "test", 1, "hello")

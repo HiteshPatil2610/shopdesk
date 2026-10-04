@@ -2,6 +2,11 @@ import { useApi, type Role, type UserPublic } from '@shopdesk/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export type NewUser = { username: string; full_name: string; role: Role; password: string };
+export type AdminUser = UserPublic & {
+  clerk_user_id: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
 
 const KEY = ['users'];
 
@@ -9,7 +14,7 @@ export function useUsers() {
   const api = useApi();
   return useQuery({
     queryKey: KEY,
-    queryFn: async () => (await api.get<{ items: UserPublic[] }>('/api/users')).data.items,
+    queryFn: async () => (await api.get<{ items: AdminUser[] }>('/api/users')).data.items,
   });
 }
 

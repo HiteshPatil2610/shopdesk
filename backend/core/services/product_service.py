@@ -234,6 +234,17 @@ def update(product_id: int, data: ProductUpdate, actor: ActorContext) -> Product
         )
 
     before = _snapshot(product)
+    try:
+        return _apply_update(product, data, before, actor)
+    except Exception:
+        # Never leave a half-edited product in the session (it would be autoflushed later).
+        db.session.rollback()
+        raise
+
+
+def _apply_update(
+    product: Product, data: ProductUpdate, before: dict[str, Any], actor: ActorContext
+) -> Product:
     fields = data.model_dump(
         exclude_unset=True, exclude={"version", "quantity", "clear_category", "clear_barcode"}
     )

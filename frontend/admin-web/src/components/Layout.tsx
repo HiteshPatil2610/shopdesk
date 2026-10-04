@@ -8,6 +8,7 @@ type NavItem = { to: string; label: string; icon: string; roles: Role[] };
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: '▣', roles: ['admin', 'manager'] },
   { to: '/products', label: 'Products', icon: '📦', roles: ['admin', 'manager'] },
+  { to: '/audit', label: 'Audit log', icon: '≡', roles: ['admin', 'manager'] },
   { to: '/settings/pricing', label: 'Pricing rules', icon: '₹', roles: ['admin'] },
   { to: '/users', label: 'Users', icon: '👥', roles: ['admin'] },
 ];

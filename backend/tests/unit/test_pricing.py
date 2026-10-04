@@ -38,12 +38,39 @@ def test_single_option_when_both_roundings_agree():
     assert [o.value for o in mp_options(D("1460"))] == [D("1500.00")]
 
 
-@pytest.mark.parametrize(("raw_sp", "expected"), [("1212", "1210"), ("1293", "1290")])
-def test_sp_rounds_down_to_closest_lower_ten(raw_sp, expected):
-    # Owner's rule: "closest lower number with 0 at the end". (Their 1212 example said 1200;
-    # set sp_step=100 if hundreds were meant.) Discount 0% isolates the rounding.
+@pytest.mark.parametrize(
+    ("raw_sp", "expected"),
+    [
+        ("1212", "1200"),
+        ("1293", "1290"),
+        ("1318", "1300"),
+        ("1205", "1200"),
+        ("1229", "1220"),
+        ("110", "100"),
+        ("18", "10"),
+    ],
+)
+def test_sp_rounds_down_and_x10_becomes_x00(raw_sp, expected):
+    # Owner: down to the nearest ₹10, and "if the second place value is 1, make it 00".
     no_discount = PricingRules(sp_discount_pct=D("0"))
     assert selling_price_for(D(raw_sp), D("1"), no_discount) == D(expected)
+
+
+def test_x10_rule_can_be_switched_off():
+    rules = PricingRules(sp_discount_pct=D("0"), sp_avoid_ten=False)
+    assert selling_price_for(D("1212"), D("1"), rules) == D("1210.00")
+
+
+def test_mp_is_smooth_across_the_500_threshold():
+    """Owner: cost 500 should also give 1000 (no price drop when the markup changes)."""
+    assert calculate("499").market_price == D("1000.00")
+    assert calculate("500").market_price == D("1000.00")
+    assert calculate("500").raw_mp == D("975.00")
+    prev = D("0")
+    for paise in range(40000, 60000, 7):  # ₹400 … ₹600
+        mp = calculate(D(paise) / 100).market_price
+        assert mp >= prev, paise
+        prev = mp
 
 
 def test_sp_is_mp_minus_10_percent():
@@ -64,8 +91,11 @@ EXAMPLES = [
     # cost,   raw MP,    MP primary, MP alternate, SP (from primary)
     ("212", "413.40", "420.00", "450.00", "370.00"),
     ("650", "1235.00", "1250.00", "1300.00", "1120.00"),
+    ("700", "1330.00", "1350.00", "1400.00", "1200.00"),
     ("743", "1411.70", "1450.00", "1500.00", "1300.00"),
-    ("500", "950.00", "950.00", "1000.00", "850.00"),
+    ("500", "975.00", "1000.00", None, "900.00"),
+    ("513", "975.00", "1000.00", None, "900.00"),
+    ("530", "1007.00", "1050.00", "1100.00", "940.00"),
     ("499", "973.05", "1000.00", None, "900.00"),
     ("20", "39.00", "40.00", "50.00", "30.00"),
     ("0", "0.00", "0.00", None, "0.00"),
@@ -98,7 +128,7 @@ def test_alternate_falls_back_to_primary_when_only_one_option():
 @pytest.mark.parametrize("mode", ["primary", "alternate"])
 def test_cost_le_sp_le_mp_for_random_costs(mode):
     rng = random.Random(2026)
-    for _ in range(5000):
+    for _ in range(10000):
         cost = D(rng.randint(0, 10_000_000)) / 100
         r = calculate(cost, mp_mode=mode)
         assert cost <= r.selling_price <= r.market_price, (cost, r)
@@ -131,3 +161,4 @@ def test_float_cost_rejected():
 
 def test_explanation_is_human_readable():
     assert "1235.00 → up to ₹50 = 1250.00" in calculate("650").explanation
+    assert "90% = 950.00 → smoothed to 975.00" in calculate("500").explanation

@@ -4,7 +4,10 @@ Owner's rules (2026-10-04):
   MP  = cost + 95% when cost < ₹500, cost + 90% when cost ≥ ₹500
         rounded UP — default to the next ₹50, alternative option to the next ₹100
         (MPs under ₹500 use smaller steps: ₹10, alternative ₹50)
-  SP  = MP − 10%, rounded DOWN to the nearest ₹10
+  Smoothing: at/above ₹500 the raw MP never drops below what a ₹499.99 product gets
+        (threshold × 1.95), so prices only rise with cost (₹500 → ₹1000, not ₹950)
+  SP  = MP − 10%, rounded DOWN to the nearest ₹10; if that ends in …10 (e.g. 1210) use …00
+        (only for SP ≥ ₹100)
   and always cost ≤ SP ≤ MP (PE-2 / BR-2).
 
 All the numbers live in PricingRules so the admin can tune them without code changes.
@@ -34,6 +37,7 @@ class PricingRules:
     mp_alt_step: Decimal = Decimal("100")
     sp_discount_pct: Decimal = Decimal("10")
     sp_step: Decimal = Decimal("10")
+    sp_avoid_ten: bool = True  # 1210 → 1200 (owner's rule)
 
 
 DEFAULT_RULES = PricingRules()
@@ -74,7 +78,12 @@ def markup_for(cost: Decimal, rules: PricingRules = DEFAULT_RULES) -> Decimal:
 
 
 def raw_market_price(cost: Decimal, rules: PricingRules = DEFAULT_RULES) -> Decimal:
-    return q2(cost * (1 + markup_for(cost, rules) / HUNDRED))
+    raw = cost * (1 + markup_for(cost, rules) / HUNDRED)
+    if cost >= rules.markup_threshold:
+        # Smoothing: never price below the most expensive "low markup" product.
+        floor = rules.markup_threshold * (1 + rules.markup_low_pct / HUNDRED)
+        raw = max(raw, floor)
+    return q2(raw)
 
 
 def mp_options(raw_mp: Decimal, rules: PricingRules = DEFAULT_RULES) -> tuple[MpOption, ...]:
@@ -100,6 +109,8 @@ def selling_price_for(
     """SP = MP − discount%, rounded DOWN to the step, clamped into [cost, MP] (PE-2)."""
     mp = to_decimal(market_price)
     sp = floor_to(mp * (1 - rules.sp_discount_pct / HUNDRED), rules.sp_step)
+    if rules.sp_avoid_ten and sp >= HUNDRED and (sp // 10) % 10 == 1:
+        sp -= 10  # …10 → …00 (1210 → 1200)
     if sp < cost:
         sp = min(mp, ceil_to(cost, rules.sp_step))
     if sp < cost:  # MP itself is below the step-rounded cost; fall back to the exact cost
@@ -121,10 +132,14 @@ def calculate(
     mp = max(chosen.value, cost)
     sp = selling_price_for(mp, cost, rules)
     pct = markup_for(cost, rules)
+    markup_raw = q2(cost * (1 + pct / HUNDRED))
+    smoothing = f" → smoothed to {raw}" if raw > markup_raw else ""
     explanation = (
-        f"{cost} + {_n(pct)}% = {raw} → up to ₹{_n(chosen.step)} = {mp}; "
+        f"{cost} + {_n(pct)}% = {markup_raw}{smoothing} → up to ₹{_n(chosen.step)} = {mp}; "
         f"SP = {mp} − {_n(rules.sp_discount_pct)}% → down to ₹{_n(rules.sp_step)} = {sp}"
     )
+    if rules.sp_avoid_ten:
+        explanation += " (…10 → …00 from ₹100, keeping SP at least cost)"
     return PriceResult(
         raw_mp=raw,
         market_price=mp,

@@ -20,12 +20,13 @@ def create_app(settings: Settings | None = None) -> Flask:
     migrate.init_app(app, db, directory="migrations")
 
     from admin_api.cli import register_cli
-    from admin_api.routes import pricing, products, users, webhooks
+    from admin_api.routes import audit, pricing, products, users, webhooks
 
     app.register_blueprint(make_auth_blueprint())
     app.register_blueprint(users.bp)
     app.register_blueprint(products.bp)
     app.register_blueprint(pricing.bp)
+    app.register_blueprint(audit.bp)
     app.register_blueprint(webhooks.bp)
     register_cli(app)
     return app

@@ -10,6 +10,7 @@ import { ProductEditPage } from './pages/ProductEditPage';
 import { ProductNewPage } from './pages/ProductNewPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { UsersPage } from './pages/UsersPage';
+import { AuditPage } from './pages/AuditPage';
 
 export const router = createBrowserRouter([
   { path: '/sign-in/*', element: <SignInPage appName="Admin Console" /> },
@@ -23,6 +24,14 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'products', element: <ProductsPage /> },
+      {
+        path: 'audit',
+        element: (
+          <RequireRole roles={['admin', 'manager']}>
+            <AuditPage />
+          </RequireRole>
+        ),
+      },
       { path: 'products/new', element: <ProductNewPage /> },
       { path: 'products/:id', element: <ProductEditPage /> },
       {

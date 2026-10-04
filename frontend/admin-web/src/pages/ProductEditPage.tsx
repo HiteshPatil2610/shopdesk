@@ -23,11 +23,13 @@ import { formToPatch, productToForm } from '../features/products/mapping';
 import { PriceSection } from '../features/products/PriceSection';
 import { ProductFields } from '../features/products/ProductFields';
 import { productFormSchema, type ProductFormValues } from '../features/products/schema';
+import { AuditPage } from './AuditPage';
 
 export function ProductEditPage() {
   const id = Number(useParams().id);
   const location = useLocation();
   const product = useProduct(id);
+  const [tab, setTab] = useState<'details' | 'audit'>('details');
   // Lives here, not in the form: a save bumps `version`, which remounts the form.
   const [saved, setSaved] = useState(
     Boolean((location.state as { created?: boolean } | null)?.created),
@@ -56,13 +58,34 @@ export function ProductEditPage() {
     );
   }
   return (
-    <EditForm
-      key={product.data.version}
-      product={product.data}
-      saved={saved}
-      onSaved={() => setSaved(true)}
-      reload={() => void product.refetch()}
-    />
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-2" aria-label="Product sections">
+        <Button
+          variant={tab === 'details' ? 'primary' : 'secondary'}
+          aria-pressed={tab === 'details'}
+          onClick={() => setTab('details')}
+        >
+          Details
+        </Button>
+        <Button
+          variant={tab === 'audit' ? 'primary' : 'secondary'}
+          aria-pressed={tab === 'audit'}
+          onClick={() => setTab('audit')}
+        >
+          Audit history
+        </Button>
+      </div>
+      <div hidden={tab !== 'details'}>
+        <EditForm
+          key={product.data.version}
+          product={product.data}
+          saved={saved}
+          onSaved={() => setSaved(true)}
+          reload={() => void product.refetch()}
+        />
+      </div>
+      {tab === 'audit' && <AuditPage productId={id} />}
+    </div>
   );
 }
 
@@ -106,6 +129,12 @@ function EditForm({ product, saved, onSaved, reload }: EditFormProps) {
             {product.updated_at ? new Date(product.updated_at).toLocaleString('en-IN') : '—'}
             {product.updated_by && ` by ${product.updated_by}`}
           </p>
+          <Link
+            className="text-sm text-primary"
+            to={`/audit?entity_type=product&entity_id=${product.id}`}
+          >
+            View audit history →
+          </Link>
         </div>
         <Button
           variant={product.is_active ? 'danger' : 'secondary'}

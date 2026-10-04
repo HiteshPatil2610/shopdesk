@@ -227,9 +227,13 @@ There are no password, lockout or token columns. Clerk handles all of that.
 Constraint `CHECK (cost_price <= selling_price AND selling_price <= market_price)`. Indexes: code, barcode, lower(name), is_active.
 
 ### 5.4 `pricing_settings` (single row, id = 1)
-`mp_markup_percent NUMERIC(6,2)=40`, `sp_markup_percent=25`, `rounding_mode VARCHAR(20)='up'`, `rounding_step NUMERIC(8,2)=5`, `updated_by`, `updated_at`.
+`markup_low_pct NUMERIC(6,2)=95`, `markup_high_pct NUMERIC(6,2)=90`, `markup_threshold NUMERIC(12,2)=500`; `small_mp_limit=500`, `small_mp_step=10`, `small_mp_alt_step=50`, `mp_step=50`, `mp_alt_step=100`; `sp_discount_pct=10`, `sp_step=10`, `sp_avoid_ten BOOLEAN NOT NULL DEFAULT true`; `updated_by`, `updated_at`. Money limits use `NUMERIC(12,2)`, rounding steps `NUMERIC(8,2)` and percentages `NUMERIC(6,2)`.
+
+MP rounds upward with a primary/alternate choice stored on the product. At/above the cost threshold, raw MP is at least `markup_threshold × (1 + markup_low_pct/100)` to prevent a price drop. SP rounds down, then optionally changes a tens digit of 1 to 0 for values ≥ ₹100 (1212 → 1200; 1293 → 1290), with the cost ≤ SP ≤ MP constraint taking priority. Migration 0003 creates the settings; additive migration 0004 adds the switch. Saving settings does not reprice existing products until explicit apply.
 
 ### 5.5 `orders`
+Audit viewing uses `core/services/audit_view_service.py` behind read-only admin routes. Admins/managers can query and view details; only admins export. CSV streams up to 100,000 rows with formula-neutralized cells and a UTF-8 BOM, appending an export event in the service before streaming. The existing append-only table and trigger remain unchanged. Product history is scoped by entity type/id; orders follow spec 07.
+
 | Column | Type | Notes |
 |---|---|---|
 | order_number | VARCHAR(30) UNIQUE NOT NULL | `INV-20261004-0007` / `REJ-…` |
@@ -303,6 +307,14 @@ POST /api/products (multipart)
 
 ### 6.3 Billing: quote (POS, read-only)
 `POST /api/cart/quote {items:[{code,qty}], discount_applied}` → server prices, no writes.
+
+Implemented in `core/services/order_service.py` with explicit cost-free quote schemas.
+One query loads products, duplicate codes merge, and quantities above 10,000 after merging
+are rejected. Unknown/inactive/short-stock lines block confirmation. Browser prices are ignored.
+The POS reducer persists code/qty, customer fields and display metadata in `sd_pos_cart`;
+prices and quotes remain in TanStack Query. Quotes debounce 150ms, consume its AbortSignal,
+and hide totals until the current request finishes. Draft review/clear are available;
+payment, saved rejection and confirmation belong to §6.4 and spec 07.
 
 ### 6.4 Billing: confirm (POS) — the most important transaction
 ```

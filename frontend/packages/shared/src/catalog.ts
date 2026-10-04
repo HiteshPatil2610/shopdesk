@@ -77,6 +77,7 @@ export type PricingSettings = {
   mp_alt_step: string;
   sp_discount_pct: string;
   sp_step: string;
+  sp_avoid_ten: boolean;
 };
 
 export const UNITS = [

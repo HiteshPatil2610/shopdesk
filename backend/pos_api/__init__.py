@@ -15,8 +15,9 @@ from core.config import Settings
 
 def create_app(settings: Settings | None = None) -> Flask:
     app = build_base_app("pos", settings)
-    from pos_api.routes import products
+    from pos_api.routes import cart, products
 
     app.register_blueprint(make_auth_blueprint())
     app.register_blueprint(products.bp)
+    app.register_blueprint(cart.bp)
     return app

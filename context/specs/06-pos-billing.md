@@ -1,6 +1,6 @@
 # Spec 06 — POS Billing Screen (cart, quantity, discount)
 
-**Status:** ⬜ Not started · **Depends on:** 02, 03, 04 · **Server(s):** POS
+**Status:** ✅ Built · live five-item speed check pending stocked catalogue · **Depends on:** 02, 03, 04 · **Server(s):** POS
 
 ## 1. Goal
 A fast, keyboard-first billing screen. The cashier enters the customer name, adds products by code (typed or scanned) with quantity, sees the server-computed line totals at MP, toggles **Apply Discount** to switch every line to SP, and gets the cart ready for Confirm/Reject (spec 07).
@@ -58,7 +58,7 @@ Max 100 lines. 400 on bad input. The quote **never** returns cost.
 
 ## 7. UI behaviour
 Exactly per ui-context §4.1–4.3. Implementation notes:
-- `cartReducer` actions: `ADD(code, qty)`, `SET_QTY(code, qty)`, `REMOVE(code)`, `TOGGLE_DISCOUNT`, `SET_CUSTOMER(name, phone)`, `RESET`, `APPLY_QUOTE(response)`.
+- `cartReducer` actions: `ADD(code, qty)`, `SET_QTY(code, qty)`, `REMOVE(code)`, `TOGGLE_DISCOUNT`, `SET_CUSTOMER(name, phone)`, `RESET`. Quotes remain server state in TanStack Query; they are never copied into persisted cart state.
 - Cart state is mirrored to `sessionStorage` (`sd_pos_cart`), so a refresh doesn't lose the bill. It's cleared on confirm or reject.
 - **Add flow:** `lookup(code)` → if found and enough stock, `ADD`, otherwise show an inline error. Then `quote` (debounced 150ms, latest-wins: cancel the in-flight request with AbortController).
 - **Barcode detection:** a code field input that ends with Enter within < 50ms between keystrokes is treated as a scan → qty 1, add straight away.
@@ -68,25 +68,25 @@ Exactly per ui-context §4.1–4.3. Implementation notes:
 - Product panel: search (debounced 250ms), shows MP and stock badge. Out-of-stock items are greyed out and can't be clicked.
 
 ## 8. Tasks
-- [ ] 1. `order_service.quote(items, discount_applied)` in `core`: loads products by code in one query, computes lines with `Decimal`, merges duplicates (PB-2), flags statuses. Unit + service tests.
-- [ ] 2. `POST /api/cart/quote` route + Pydantic schemas (`QuoteRequest`, `QuoteResponse`, `QuoteLine`).
-- [ ] 3. POS-web billing page layout (header, product panel, customer section, entry row, cart table, totals, action bar).
-- [ ] 4. Cart reducer + sessionStorage persistence + tests.
-- [ ] 5. Lookup + add flow + barcode detection.
-- [ ] 6. Quote integration (debounce, abort, loading state) + discount toggle.
-- [ ] 7. Keyboard shortcuts (F2/F3/F4/F8/F9/Esc, arrows, Del) with a `useHotkeys` hook. `Kbd` hints.
-- [ ] 8. Validation: customer name/phone, qty bounds. Disabled states.
-- [ ] 9. Tests.
+- [x] 1. `order_service.quote(items, discount_applied)` in `core`: loads products by code in one query, computes lines with `Decimal`, merges duplicates (PB-2), flags statuses. Unit + service tests.
+- [x] 2. `POST /api/cart/quote` route + Pydantic schemas (`QuoteRequest`, `QuoteResponse`, `QuoteLine`).
+- [x] 3. POS-web billing page layout (header, product panel, customer section, entry row, cart table, totals, action bar).
+- [x] 4. Cart reducer + sessionStorage persistence + tests.
+- [x] 5. Lookup + add flow + barcode detection.
+- [x] 6. Quote integration (debounce, abort, loading state) + discount toggle.
+- [x] 7. Keyboard shortcuts (F2/F3/F4/F8/F9/Esc, arrows, Del) with a `useHotkeys` hook. `Kbd` hints.
+- [x] 8. Validation: customer name/phone, qty bounds. Disabled states.
+- [x] 9. Tests.
 
 ## 9. Acceptance criteria
-- [ ] With Steel bottle (MP 300 / SP 265, stock 14) and Notebook (85 / 75, stock 9): adding P00042 ×2 and P00051 ×1 shows subtotal ₹685.00. Toggling discount shows total ₹605.00 and discount ₹80.00.
-- [ ] Adding P00042 again with qty 3 → one line with qty 5, not two lines.
-- [ ] Qty 20 for a product with 14 in stock → blocked in the UI. If forced through the API, the quote line is `insufficient_stock` and `can_confirm` is false.
-- [ ] Unknown code → inline error, and the cart doesn't change.
-- [ ] A cashier who edits the request in DevTools to add `"unit_price": "1.00"` → ignored, and the response still uses DB prices.
-- [ ] Refreshing the page keeps the cart and customer name.
-- [ ] A full 5-item bill can be keyed using only the keyboard (manual test, timed under 30s).
-- [ ] The quote response JSON contains no `cost` key.
+- [x] With Steel bottle (MP 300 / SP 265, stock 14) and Notebook (85 / 75, stock 9): adding P00042 ×2 and P00051 ×1 shows subtotal ₹685.00. Toggling discount shows total ₹605.00 and discount ₹80.00.
+- [x] Adding P00042 again with qty 3 → one line with qty 5, not two lines.
+- [x] Qty 20 for a product with 14 in stock → blocked in the UI. If forced through the API, the quote line is `insufficient_stock` and `can_confirm` is false.
+- [x] Unknown code → inline error, and the cart doesn't change.
+- [x] A cashier who edits the request in DevTools to add `"unit_price": "1.00"` → ignored, and the response still uses DB prices.
+- [x] Refreshing the page keeps the cart and customer name.
+- [ ] A full 5-item bill can be keyed using only the keyboard (manual test, timed under 30s). Live catalogue is empty; timed check remains pending.
+- [x] The quote response JSON contains no `cost` key.
 
 ## 10. Tests
 - Unit/service: quote maths (MP vs SP, multiple lines, merging, rounding to 2 decimals), status flags, large qty bounds.
@@ -95,3 +95,10 @@ Exactly per ui-context §4.1–4.3. Implementation notes:
 
 ## 11. Open questions
 - Q2: manager PIN for discount? Default no.
+
+## Implementation notes (2026-10-04)
+- Quote API and billing UI are built. Quotes use one product query, merged quantities and Decimal totals; client price fields are ignored. Combined duplicate quantity above 10,000 returns 400.
+- F9 currently opens **Review bill**. **Clear bill** clears only a local draft after confirmation. Confirm/payment, persisted rejection, stock deductions and receipts arrive in spec 07.
+- Session storage contains customer inputs and cart code/quantity/display data only. Restored drafts always fetch fresh prices. Request cancellation and separate query keys prevent old responses from displaying current totals.
+- Browser verified authenticated empty state, unknown code rejection and customer recovery after refresh. Example totals, duplicate merge, stock limits, discount re-quote and persisted cart are automated tests; live stocked-cart speed check remains pending.
+

@@ -1,6 +1,6 @@
 # Spec 05 — Audit Log
 
-**Status:** ⬜ Not started · **Depends on:** 02 (wired into 03, 04, 06, 07 as they're built) · **Server(s):** written by both, viewed on Admin
+**Status:** ✅ Built for existing features; order integration follows specs 06–07 · **Depends on:** 02 (wired into 03, 04, 06, 07 as they're built) · **Server(s):** written by both, viewed on Admin
 
 ## 1. Goal
 A tamper-resistant, searchable history of **every important action on both servers**: who did it, when, from which server and IP, what changed (before → after), and why. This lets the owner trace any problem back to a person and moment.
@@ -50,7 +50,7 @@ BR-8, BR-9. New:
 - `Login failed for 'priya' (2/5)`
 
 ## 6. Data model changes
-Migration `0005_audit_logs`: table per architecture §5.8 + indexes + trigger:
+Migration `0002_users_audit` already created the table, indexes and immutability trigger during spec 02. No new migration is needed for the viewer:
 ```sql
 CREATE FUNCTION audit_logs_immutable() RETURNS trigger AS $$
 BEGIN RAISE EXCEPTION 'audit_logs is append-only'; END; $$ LANGUAGE plpgsql;
@@ -79,29 +79,32 @@ audit_service.diff(before: dict, after: dict, redact: set[str] = {"password", "n
 | GET | /api/products/{id}/audit | mgr+ | shortcut for entity history |
 | GET | /api/orders/{id}/audit | mgr+ | |
 
-There is no POST/PUT/PATCH/DELETE for audit logs on any server.
+There is no POST/PUT/PATCH/DELETE for audit logs on any server. The order history shortcut will be added with the order model/routes in spec 07. Filters use ISO timestamps in the API; the UI converts IST inputs to UTC. CSV exports stream at most the newest 100,000 matching rows, include a UTF-8 BOM for Excel, and log filters/count before streaming. The export event itself is excluded from its own download.
 
 ## 9. UI
-Audit log page and diff drawer per ui-context §3.7. Product edit page "Audit history" tab. Order detail "Audit" link.
+Audit log page with URL-synced filters and a read-only details modal using the existing shared Modal component. Field diffs show before/after, plus metadata/IP/user agent. Admin-only CSV button. Product edit page "Audit history" tab preserves the details form while switching views. Order detail "Audit" link follows spec 07.
 
 ## 10. Tasks
-- [ ] 1. Model, migration and trigger.
-- [ ] 2. `audit_service.record` + `diff` + redaction + summary helpers. Replace any stub from spec 02.
-- [ ] 3. Make sure every existing write service calls it (auth, users, products, pricing).
-- [ ] 4. Viewer API + CSV export (stream with `csv` module, escape formula injection: prefix cells starting with `= + - @` with `'`).
-- [ ] 5. Admin UI: table, filters (synced to URL query), diff drawer, CSV button, product/order history tabs.
-- [ ] 6. Tests, including a meta-test that runs every write endpoint and asserts that ≥ 1 audit row was created.
+- [x] 1. Model, migration and trigger (spec 02).
+- [x] 2. `audit_service.record` + `diff` + recursive secret redaction; no stub remains.
+- [x] 3. Existing write services record events (auth, users, products, pricing).
+- [x] 4. Viewer API + bounded streamed CSV export with formula protection.
+- [x] 5. Admin table, URL filters, details modal, CSV button and product audit tab.
+- [ ] 5b. Order history endpoint/link when orders are built in spec 07.
+- [x] 6. API/unit/UI tests and meta-test for built catalogue/staff write flows; existing auth/image tests check their events.
 
 ## 11. Acceptance criteria
-- [ ] Changing a product's MP creates exactly one `product.update` row with `changes = {"market_price": ["300.00","320.00"]}`, the actor, `source='admin'` and the IP.
-- [ ] A sale on POS creates `order.confirm` with customer name, cashier and totals, `source='pos'`.
-- [ ] `UPDATE audit_logs SET summary='x'` in psql → error from the trigger.
-- [ ] If a product update fails BR-2, no audit row is written (same transaction).
-- [ ] Password hashes never appear in any audit row (test searches all rows).
-- [ ] CSV export opens correctly in Excel. A summary starting with `=` is neutralised.
-- [ ] Manager can view but gets 403 on export.
+- [x] Changing a product's MP creates exactly one `product.update` row with `changes = {"market_price": ["300.00","320.00"]}`, the actor, `source='admin'` and the IP. *(test)*
+- [ ] A sale on POS creates `order.confirm` with customer name, cashier and totals, `source='pos'` (spec 07).
+- [x] `UPDATE audit_logs SET summary='x'` → error from the trigger (DB test).
+- [x] If a product update fails BR-2, no audit row is written (same transaction). *(test)*
+- [x] Password hashes never appear in any audit row (test searches all rows). *(test)*
+- [x] CSV export opens correctly in Excel. A summary starting with `=` is neutralised. *(test)*
+- [x] Manager can view but gets 403 on export.
 
 ## 12. Tests
 - Service: diff edge cases (Decimal, None → value, nested), redaction, rollback together.
 - DB: trigger blocks update/delete.
 - API: filters, pagination, roles, CSV injection.
+
+Verification (2026-10-04): 188 backend tests and 51 frontend tests pass, including existing immutable-table checks, new filters/roles/export tests, recursive redaction, CSV formula protection and IST filter conversion. Browser verified rows, details, no-result filtering and export audit event. Download-path observation timed out in the in-app browser; API tests consumed and validated the CSV bytes.

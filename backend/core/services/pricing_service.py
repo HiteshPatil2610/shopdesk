@@ -32,7 +32,11 @@ def _row() -> PricingSettings:
 
 def get_rules() -> PricingRules:
     row = _row()
-    return PricingRules(**{name: Decimal(getattr(row, name)) for name in RULE_FIELDS})
+    values: dict[str, Any] = {}
+    for name in RULE_FIELDS:
+        value = getattr(row, name)
+        values[name] = value if isinstance(value, bool) else Decimal(value)
+    return PricingRules(**values)
 
 
 def rules_from_input(data: PricingSettingsIn) -> PricingRules:
@@ -49,8 +53,11 @@ def _validate(rules: PricingRules) -> None:
         )
 
 
-def settings_out(rules: PricingRules) -> dict[str, str]:
-    return {name: money_str(value) for name, value in asdict(rules).items()}
+def settings_out(rules: PricingRules) -> dict[str, str | bool]:
+    return {
+        name: value if isinstance(value, bool) else money_str(value)
+        for name, value in asdict(rules).items()
+    }
 
 
 def update_settings(data: PricingSettingsIn, actor: ActorContext) -> PricingRules:
@@ -152,17 +159,23 @@ def apply_to_products(dry_run: bool, actor: ActorContext) -> dict[str, Any]:
         db.session.scalars(select(Product).where(Product.is_active).order_by(Product.id)).all()
     )
     diffs: list[dict[str, Any]] = []
-    for product in products:
-        if product.mp_is_manual and product.sp_is_manual:
-            continue
-        snapshot = (product.market_price, product.selling_price)
-        changes = reprice(product, rules)
-        if changes:
-            diffs.append(
-                {"id": product.id, "code": product.code, "name": product.name, "changes": changes}
-            )
-        if dry_run:
-            product.market_price, product.selling_price = snapshot
+    try:
+        for product in products:
+            if product.mp_is_manual and product.sp_is_manual:
+                continue
+            changes = reprice(product, rules)
+            if changes:
+                diffs.append(
+                    {
+                        "id": product.id,
+                        "code": product.code,
+                        "name": product.name,
+                        "changes": changes,
+                    }
+                )
+    except Exception:
+        db.session.rollback()  # one bad product → nothing is changed
+        raise
 
     if dry_run:
         db.session.rollback()

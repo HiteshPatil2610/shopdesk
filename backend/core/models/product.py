@@ -128,6 +128,7 @@ class PricingSettings(db.Model):  # type: ignore[name-defined,misc]
     mp_alt_step: Mapped[Decimal] = mapped_column(Numeric(8, 2), nullable=False)
     sp_discount_pct: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
     sp_step: Mapped[Decimal] = mapped_column(Numeric(8, 2), nullable=False)
+    sp_avoid_ten: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
     updated_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

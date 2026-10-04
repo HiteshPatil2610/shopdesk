@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 2. Specs 03–04 built (owner to try in the UI) → next: **spec 05 (audit log viewer)**, then 06–07
+**Current phase:** Phase 3. Specs 03–06 built → next: **spec 07 (orders/stock and their audit integration)**. Live five-item billing speed check pending stocked catalogue
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -13,9 +13,9 @@
 | 1 | [01 Project setup](specs/01-project-setup.md) | ✅ Done | Both APIs + both web apps run against Neon. 36 backend + 9 frontend tests |
 | 1 | [02 Authentication](specs/02-authentication.md) | ✅ Done | Owner verified sign-in, user creation and cashier blocking on 2026-10-04 |
 | 2 | [03 Product management](specs/03-product-management.md) | ✅ Built | Image upload waits on a real CLOUDINARY_URL (placeholder in .env) |
-| 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ✅ Built | Owner's formula. Settings page + apply |
-| 2 | [05 Audit log](specs/05-audit-log.md) | 🟨 Partly done | Table, trigger and `audit_service` built in spec 02. Viewer + CSV still to do |
-| 3 | [06 POS billing](specs/06-pos-billing.md) | ⬜ Not started | |
+| 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ✅ Built | Owner's formula + threshold smoothing + optional SP …10 → …00. Admin browser previews verified |
+| 2 | [05 Audit log](specs/05-audit-log.md) | ✅ Built | Viewer, filters, field diffs, safe CSV export, product history; order events/history follow spec 07 |
+| 3 | [06 POS billing](specs/06-pos-billing.md) | ✅ Built | Server quotes, persisted draft cart, lookup, discount and keyboard UI; timed live five-item check pending |
 | 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ⬜ Not started | |
 | 4 | [08 Dashboard & reports](specs/08-dashboard-and-reports.md) | ⬜ Not started | |
 | 4 | [09 Security hardening](specs/09-security-hardening.md) | ⬜ Not started | |
@@ -43,8 +43,8 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | # | Question | Default if no answer | Status |
 |---|---|---|---|
 | Q1 | ~~MP/SP formula~~ | Owner's rule (spec 04 §5) | ✅ 2026-10-04 |
-| Q10 | SP 1212 → 1210 (stated rule) or 1200 (example)? | 1210 (`sp_step` = 10) | Open |
-| Q11 | Keep the MP jump at cost ₹500 (₹499 → MP 1000, ₹500 → MP 950)? | Keep as specified | Open |
+| Q10 | SP tens digit of 1 becomes 0 after rounding down | 1212 → 1200, 1293 → 1290; optional switch, from ₹100 upward | ✅ Owner clarified 2026-10-04 |
+| Q11 | Smooth the MP change at cost ₹500 | Raw MP floor ₹975 gives MP ₹1000 at cost ₹500 | ✅ Owner approved 2026-10-04 |
 | Q2 | Should "Apply Discount" need a manager PIN? | No. Any cashier can apply it, and it's audited | Open |
 | Q3 | Shop name/address/phone for receipts? | Set in `.env` (`SHOP_NAME`, …) | Open |
 | Q4 | Are fractional quantities needed (e.g. 1.5 kg)? | No. Integers only in v1 | Open |
@@ -58,6 +58,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Date | Decision | Why | Ref |
 |---|---|---|---|
+| 2026-10-04 | Owner clarified SP …10 → …00 (from ₹100 upward, optional) and approved smoothing at cost ₹500. Additive migration 0004 persists the SP switch | Matches 1212 → 1200, 1293 → 1290 and cost 500 → MP 1000 without violating the cost floor | spec 04 §5, architecture §5.4 |
 | 2026-10-04 | Two Flask apps + shared `core` Python package, one Postgres DB | Matches the product idea. Logic isn't duplicated | architecture §1, A1 |
 | 2026-10-04 | PostgreSQL over SQLite | Two concurrent writer servers, row locks, CHECK, triggers | A2 |
 | 2026-10-04 | React + Vite + TypeScript + Tailwind for both frontends | Owner knows React. TS for safety | architecture §2 |
@@ -101,6 +102,10 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Date | Who | What was done | Next |
 |---|---|---|---|
+| 2026-10-04 | Codex | Built spec 05 audit viewer/API, URL-synced IST filters, paginated table, detail diffs, admin-only streamed CSV with formula protection and export event, product audit history tab, recursive secret redaction. Reused spec 02 immutable table; no migration. Browser verified existing rows/details/empty state and export event; download-path observation timed out. Full backend suite: 188 passed; frontend: 51 passed; lint/format/type checks and both production builds passed. Added write-audit and timezone regression tests. Ports/access unchanged | Spec 06 POS billing; order audit integration in spec 07 |
+| 2026-10-04 | Codex + owner | Added admin-only user details modal and separate username/email display, account IDs, current role/status/access and IST timestamps. Extended only the admin user list response; passwords remain excluded. 15 user API tests and 48 frontend tests pass; lint/type checks pass. Verified cashier details modal in signed-in browser. Started local admin API after finding port 5001 stopped | Owner can inspect user identifiers in Users → View details |
+| 2026-10-04 | Codex + owner | Signed in as demo admin and verified pricing examples: cost 500 → MP 1000; cost 700 → SP 1200, unsaved switch-off → 1210; product form cost 743 offers MP 1450/SP 1300 or MP 1500/SP 1350. Reset unsaved changes, did not save products or apply settings, and signed out. Manager/cashier browser checks await corrected demo credentials; automated role tests already pass | Verify manager/cashier screens once owner corrects credentials |
+| 2026-10-04 | Codex | Reviewed project docs and existing specs 03–04; completed Claude's SP switch in shared types/settings UI, added boolean save regression/API audit tests, clarified preview explanations and updated stale formula docs. 165 backend tests passed in full run; remaining setup-tools test passed separately after sandbox temp-directory error (166 total). 37 pricing unit tests passed after final explanation edit. 48 frontend tests, both builds, lint/format/type checks passed. Development DB already at migration 0004. Browser reached Clerk sign-in | Signed-in UI verification pending demo account or owner sign-in; Cloudinary credentials still need verification |
 | 2026-10-04 | Claude + owner | Created the `context/` docs: overview, architecture, UI, standards, AI rules, specs 01–10 | Start spec 01 |
 | 2026-10-04 | Claude + owner | Wrote `SETUP_GUIDE.md` + `.env.example`. Checked the machine: Python 3.12 needs installing, and Postgres 18 is already running | Owner: finish the SETUP_GUIDE checklist, then start spec 01 |
 | 2026-10-04 | Claude + owner | Switched to the free cloud stack (Neon, Clerk, Cloudinary, Render, Cloudflare Pages). Rewrote architecture, specs 01/02/09/10, SETUP_GUIDE and `.env.example`. Updated specs 03/05/06, standards and AI rules | Owner: create the accounts + fill `.env` (SETUP_GUIDE §3, §7), then start spec 01 |
@@ -110,3 +115,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude | **Spec 02 built**: users/webhook/audit tables (migration 0002, applied to Neon dev), Clerk JWT verification with `azp` + role checks, JIT mirror, user management via Clerk SDK, signed webhooks, `promote-admin` CLI, default-deny route test. Frontend: Clerk sign-in, AuthGate + wrong-app screen, admin layout + Users page, POS shell + pre-warm. CI actions bumped to v7 | Owner: sign in as `owner` on both apps (SETUP_GUIDE §9.3). Then specs 03 + 04 |
 | 2026-10-04 | Claude + owner | Fixed setup issues found in the manual test: partial CLERK_JWT_KEY (now validated at startup + `setup_tools fetch-clerk-key`), empty owner metadata (promote-admin), top-level `role` claim now accepted. Fixed modal focus-jump bug. Owner confirmed everything works | Specs 03 + 04 |
 | 2026-10-04 | Claude | **Specs 03 + 04 built**: owner's pricing formula (pure, 27 unit tests), pricing settings + dry-run apply, products CRUD with categories, barcode, images (Pillow → Cloudinary), optimistic locking, stock ledger opening rows, POS cost-free list/lookup. Admin UI: products list, add/edit with live MP options + manual overrides, pricing rules page. POS product panel. 152+ backend, 47 frontend tests | Owner: fix CLOUDINARY_URL placeholders, try adding products. Next: spec 05 |
+| 2026-10-04 | Claude | Reviewed the interrupted session's work (spec 05 audit viewer + CSV, spec 06 cart/quote/billing UI, pricing x10→x00 + ₹500 smoothing, sp_avoid_ten checkbox): sound overall. Fixed: half-edited product left in the session after a refused price edit (rollback in update/apply), quote now accepts lower-case codes, scan detection checks the Enter gap, hotkey hook subscribes once. Added spec 05 acceptance tests (precise update row + IP, no audit on refused edit, no passwords in audit). 204 backend + 56 frontend tests green. Clerk roles verified: admin/raccoon(manager)/deepa(cashier) | Owner: rotate the 3 passwords shared in chat; timed 5-item keyboard bill once products exist. Next: spec 07 |

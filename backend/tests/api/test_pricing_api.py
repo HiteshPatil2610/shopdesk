@@ -16,6 +16,7 @@ SETTINGS = {
     "mp_alt_step": "100",
     "sp_discount_pct": "10",
     "sp_step": "10",
+    "sp_avoid_ten": True,
 }
 
 
@@ -74,6 +75,21 @@ def test_bad_settings_rejected(dbs, admin_client, as_role):
     assert res.status_code == 422
 
 
+def test_sp_rounding_switch_is_saved_audited_and_used(dbs, admin_client, as_role):
+    h = as_role("admin")
+    before = admin_client.post("/api/pricing/preview", headers=h, json={"cost_price": "700"})
+    assert before.get_json()["selling_price"] == "1200.00"
+    res = admin_client.put(
+        "/api/pricing/settings", headers=h, json={**SETTINGS, "sp_avoid_ten": False}
+    )
+    assert res.status_code == 200
+    assert res.get_json()["settings"]["sp_avoid_ten"] is False
+    after = admin_client.post("/api/pricing/preview", headers=h, json={"cost_price": "700"})
+    assert after.get_json()["selling_price"] == "1210.00"
+    audit = dbs.scalar(select(AuditLog).where(AuditLog.action == "pricing_settings.update"))
+    assert audit.changes == {"sp_avoid_ten": [True, False]}
+
+
 def test_settings_change_does_not_reprice_until_apply(dbs, admin_client, as_role):
     h = as_role("admin")
     pid = admin_client.post(
@@ -108,7 +124,10 @@ def test_settings_change_does_not_reprice_until_apply(dbs, admin_client, as_role
     real = admin_client.post("/api/pricing/apply", headers=h, json={"dry_run": False}).get_json()
     assert real["affected"] == 1 and real["applied"] is True
     product = admin_client.get(f"/api/products/{pid}", headers=h).get_json()["product"]
-    assert (product["market_price"], product["selling_price"]) == ("1300.00", "1170.00")
+    assert (product["market_price"], product["selling_price"]) == (
+        "1300.00",
+        "1170.00",
+    )  # 1170: tens digit 7
     assert (
         admin_client.get(f"/api/products/{manual}", headers=h).get_json()["product"]["market_price"]
         == "2000.00"

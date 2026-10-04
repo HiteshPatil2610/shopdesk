@@ -43,6 +43,26 @@ def test_admin_creates_cashier(dbs, admin_client, as_owner, fake_clerk):
     assert "counter-pass-01" not in json.dumps([audit.changes, audit.metadata_, audit.summary])
 
 
+def test_admin_user_details_include_profile_and_dates_without_passwords(
+    dbs, admin_client, as_owner, owner
+):
+    owner.email = "owner@example.test"
+    dbs.flush()
+    res = admin_client.get("/api/users", headers=as_owner)
+    assert res.status_code == 200
+    user = res.get_json()["items"][0]
+    assert user["username"] == "owner"
+    assert user["email"] == "owner@example.test"
+    assert user["clerk_user_id"] == "user_owner"
+    assert user["created_at"] and user["updated_at"]
+    assert not any("password" in key for key in user)
+
+
+@pytest.mark.parametrize("role", ["manager", "cashier"])
+def test_user_details_are_admin_only(dbs, admin_client, as_role, role):
+    assert admin_client.get("/api/users", headers=as_role(role)).status_code == 403
+
+
 @pytest.mark.parametrize(
     ("payload", "field"),
     [

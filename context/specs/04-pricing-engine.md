@@ -18,7 +18,7 @@ Turn a cost price into a rounded **Market Price (MP)** and **Selling Price (SP)*
 BR-1, BR-2, BR-8. New:
 - **PE-1** The formula is a **pure function**: `calculate(cost: Decimal, s: PricingSettings) -> PriceResult(mp, sp)`. No DB, no Flask.
 - **PE-2** Output always satisfies `cost ≤ SP ≤ MP`. If rounding pushes SP above MP, set `SP = MP`. If SP < cost after rounding down, set `SP = round_up(cost)`.
-- **PE-3** `0 ≤ sp_markup ≤ mp_markup ≤ 500`. `rounding_step ∈ {0.01, 0.50, 1, 2, 5, 10, 50, 100}`.
+- **PE-3** Markups are between 0 and 500%, SP discount is between 0 and 90%, rounding steps are positive, and alternate steps are at least the primary steps.
 - **PE-4** Changing settings never changes existing product prices by itself. Only an explicit "Apply to products" action does, and it skips manual fields.
 
 ## 5. The formula (owner's rules, 2026-10-04)
@@ -26,16 +26,18 @@ BR-1, BR-2, BR-8. New:
 ```
 markup  = 95% if cost < ₹500 else 90%                      (markup_low_pct / markup_high_pct / markup_threshold)
 raw_mp  = cost × (1 + markup/100)
+          at cost ≥ threshold, use max(raw_mp, threshold × (1 + low_markup/100))
 MP      = round UP raw_mp:
             raw_mp ≥ ₹500 → next ₹50  (default)  or next ₹100 (bigger option)   (mp_step / mp_alt_step)
             raw_mp < ₹500 → next ₹10  (default)  or next ₹50  (bigger option)   (small_mp_*)
           the product stores which option was chosen (mp_round_mode = primary | alternate)
 SP      = MP − 10%, rounded DOWN to the nearest ₹10        (sp_discount_pct / sp_step)
+          if SP ≥ ₹100 and its tens digit is 1, subtract ₹10 (sp_avoid_ten, default on)
 clamp   : cost ≤ SP ≤ MP
 ```
 Owner's examples: MP 1243 → **1250**; 1412 → **1450** or **1500** (choice in the UI); SP 1293 → **1290**.
-*Note:* the owner also wrote "SP 1212 → 1200", but the rule "closest lower number ending in 0" gives **1210**. The code follows the rule. Set `sp_step = 100` if hundreds were meant.
-*Note:* because the markup drops at ₹500, cost ₹499 → MP ₹1000 but cost ₹500 → MP ₹950. This is how the rule works. Tell us if you want it smoothed.
+Owner's clarification: SP **1212 → 1200**, **1318 → 1300**, while **1293 → 1290**. This extra rule can be switched off in the pricing settings. It applies only from ₹100 upward and never overrides the cost floor.
+At cost ₹500 the smoothed raw MP is ₹975 and rounds up to **₹1000**, matching cost ₹499. The normal 90% formula takes over above approximately ₹513.16.
 
 **Worked examples** (unit-tested in `tests/unit/test_pricing.py`):
 | Cost | raw MP | MP (default) | MP (bigger) | SP |
@@ -43,13 +45,14 @@ Owner's examples: MP 1243 → **1250**; 1412 → **1450** or **1500** (choice in
 | 20 | 39.00 | 40.00 | 50.00 | 30.00 |
 | 212 | 413.40 | 420.00 | 450.00 | 370.00 |
 | 499 | 973.05 | 1000.00 | — | 900.00 |
-| 500 | 950.00 | 950.00 | 1000.00 | 850.00 |
+| 500 | 975.00 | 1000.00 | — | 900.00 |
+| 700 | 1330.00 | 1350.00 | 1400.00 | 1200.00 |
 | 650 | 1235.00 | 1250.00 | 1300.00 | 1120.00 |
 | 743 | 1411.70 | 1450.00 | 1500.00 | 1300.00 (bigger MP → 1350.00) |
 | 0 | 0.00 | 0.00 | — | 0.00 |
 
 ## 6. Data model changes
-Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one row (id=1) of defaults, plus `CHECK (id = 1)`.
+Migration `0003_catalog_pricing` creates and seeds the single settings row, plus `CHECK (id = 1)`. Additive migration `0004_sp_avoid_ten` adds the boolean SP rounding switch, default true.
 
 ## 7. API (Admin :5001)
 | Method | Path | Role | Request → Response |
@@ -74,11 +77,11 @@ Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one
 - [x] 7. Tests.
 
 ## 10. Acceptance criteria
-- [ ] All rows of the worked-examples table pass as unit tests.
-- [ ] 10,000 random costs × every rounding mode → `cost ≤ SP ≤ MP` always (property test).
-- [ ] A manager can preview but gets 403 on PUT settings and apply.
+- [x] All rows of the worked-examples table pass as unit tests.
+- [x] 10,000 random costs × every rounding mode → `cost ≤ SP ≤ MP` always (property test).
+- [x] A manager can preview but gets 403 on PUT settings and apply.
 - [ ] Apply with dry_run shows the count. Real apply changes only non-manual fields of active products and writes audit rows.
-- [ ] Changing settings alone doesn't change any product price (PE-4).
+- [x] Changing settings alone doesn't change any product price (PE-4).
 - [ ] No `float` in `pricing.py` (enforced with a ruff/grep check in CI).
 
 ## 11. Tests
@@ -87,4 +90,4 @@ Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one
 - API: roles, preview with custom settings.
 
 ## 12. Open questions
-- ~~Q1: owner's formula~~ Done (§5). Open: confirm SP 1212 → 1210 (rule) vs 1200 (example), and the ₹499/₹500 MP jump.
+- Owner clarified both SP rounding and threshold smoothing; see §5.

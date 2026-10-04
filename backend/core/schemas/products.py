@@ -115,6 +115,7 @@ class PricingSettingsIn(_Strict):
     mp_alt_step: MoneyIn
     sp_discount_pct: MoneyIn = Field(le=Decimal("90"))
     sp_step: MoneyIn
+    sp_avoid_ten: bool = True
 
     @field_validator("small_mp_step", "small_mp_alt_step", "mp_step", "mp_alt_step", "sp_step")
     @classmethod
