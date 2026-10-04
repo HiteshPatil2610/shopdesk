@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 1. Spec 02 built (🟨 owner sign-in test pending) → next: **spec 03 + 04 (products + pricing)**
+**Current phase:** Phase 1 ✅ (specs 01–02 done) → next: **spec 03 + 04 (products + pricing)**
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -11,7 +11,7 @@
 |---|---|---|---|
 | 0 | Context docs | ✅ Done | This folder |
 | 1 | [01 Project setup](specs/01-project-setup.md) | ✅ Done | Both APIs + both web apps run against Neon. 36 backend + 9 frontend tests |
-| 1 | [02 Authentication](specs/02-authentication.md) | 🟨 Built | Owner must do the manual sign-in test (spec 02 task 10). 81 backend + 18 frontend tests green |
+| 1 | [02 Authentication](specs/02-authentication.md) | ✅ Done | Owner verified sign-in, user creation and cashier blocking on 2026-10-04 |
 | 2 | [03 Product management](specs/03-product-management.md) | ⬜ Not started | |
 | 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ⬜ Not started | Needs the owner's final formula (Q1) |
 | 2 | [05 Audit log](specs/05-audit-log.md) | 🟨 Partly done | Table, trigger and `audit_service` built in spec 02. Viewer + CSV still to do |
@@ -26,7 +26,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 ## Milestones
 
 - [x] **M1: Skeleton runs.** Both APIs return `/api/health`, both React apps load, Postgres is migrated (spec 01)
-- [ ] **M2: Secure login** on both servers with roles (spec 02)
+- [x] **M2: Secure login** on both servers with roles (spec 02)
 - [ ] **M3: Catalogue.** Add/edit products with images and auto MP/SP, with everything audited (specs 03–05)
 - [ ] **M4: First sale.** Bill → discount → confirm → stock reduced → audit row (specs 06–07)
 - [ ] **M5: Owner insights.** Dashboard, low stock, CSV export (spec 08)
@@ -106,3 +106,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude + owner | Switched hosting from Render + Cloudflare Pages to **Vercel** (4 projects). Updated architecture (§1–3, 9–13, ADRs A9/A12/A13), rewrote spec 10, and updated specs 01/03/09, SETUP_GUIDE, `.env.example`, CLAUDE.md, standards, README and overview | Same as above. Owner: set `MAX_UPLOAD_MB=4` in local `.env` |
 | 2026-10-04 | Claude | **Spec 01 built**: `backend/` (core config/db/errors/money/health, admin_api + pos_api factories, Vercel entry, Alembic baseline applied to Neon dev), `frontend/` (npm workspaces: shared pkg + admin-web + pos-web, Tailwind v4, Vitest), CI workflow, pre-commit, dev.ps1, README. Created Neon DB `shopdesk_test` + set TEST_DATABASE_URL. All checks green locally | Spec 02 (Clerk auth) |
 | 2026-10-04 | Claude | **Spec 02 built**: users/webhook/audit tables (migration 0002, applied to Neon dev), Clerk JWT verification with `azp` + role checks, JIT mirror, user management via Clerk SDK, signed webhooks, `promote-admin` CLI, default-deny route test. Frontend: Clerk sign-in, AuthGate + wrong-app screen, admin layout + Users page, POS shell + pre-warm. CI actions bumped to v7 | Owner: sign in as `owner` on both apps (SETUP_GUIDE §9.3). Then specs 03 + 04 |
+| 2026-10-04 | Claude + owner | Fixed setup issues found in the manual test: partial CLERK_JWT_KEY (now validated at startup + `setup_tools fetch-clerk-key`), empty owner metadata (promote-admin), top-level `role` claim now accepted. Fixed modal focus-jump bug. Owner confirmed everything works | Specs 03 + 04 |

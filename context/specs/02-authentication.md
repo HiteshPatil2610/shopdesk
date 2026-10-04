@@ -1,6 +1,6 @@
 # Spec 02 — Authentication & Roles (Clerk)
 
-**Status:** 🟨 Built, waiting for the owner's manual sign-in test (task 10) · **Depends on:** 01 · **Server(s):** both
+**Status:** ✅ Done (2026-10-04) · **Depends on:** 01 · **Server(s):** both
 
 ## 1. Goal
 Only staff accounts the admin has created can use either server. Sign-in, passwords and sessions are handled by **Clerk**. ShopDesk handles **roles** and **which server each role may use**, and keeps a local `users` mirror so every order, product edit and audit row points to a real person.
@@ -126,7 +126,7 @@ There are no login, logout or refresh endpoints. The Clerk SDK handles them.
 - [x] 7. `user_service` + Users routes (Clerk SDK mocked in tests) + AU-4.
 - [x] 8. `promote-admin` CLI.
 - [x] 9. Frontend: ClerkProvider, sign-in page, guard, axios interceptor, UserButton, "wrong app" screen, Users page.
-- [ ] 10. Manual test: create an owner in the Clerk dashboard → promote-admin → create a cashier from the Users page → check the role matrix in both apps.
+- [x] 10. Manual test: create an owner in the Clerk dashboard → promote-admin → create a cashier from the Users page → check the role matrix in both apps.
 
 ## 11. Acceptance criteria
 - [x] Self sign-up is impossible: the sign-up page shows restricted, and the API rejects users without a role. *(automated test)*
