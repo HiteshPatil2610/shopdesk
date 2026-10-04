@@ -32,9 +32,15 @@ def test_migration_url_prefers_unpooled():
     assert "-pooler" in s.effective_database_url
 
 
-def test_pem_escaped_newlines_are_restored():
-    s = make(clerk_jwt_key="-----BEGIN PUBLIC KEY-----\\nABC\\n-----END PUBLIC KEY-----")
-    assert s.clerk_jwt_key == "-----BEGIN PUBLIC KEY-----\nABC\n-----END PUBLIC KEY-----"
+def test_pem_escaped_newlines_are_restored(rsa_public_pem):
+    one_line = rsa_public_pem.strip().replace("\n", "\\n")
+    assert make(clerk_jwt_key=one_line).clerk_jwt_key == rsa_public_pem.strip()
+
+
+def test_invalid_pem_fails_fast_with_fix_hint():
+    shortened = "-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqh...\\n-----END PUBLIC KEY-----"
+    with pytest.raises(ValidationError, match="setup_tools fetch-clerk-key"):
+        make(clerk_jwt_key=shortened)
 
 
 def test_test_env_refuses_non_test_database():
@@ -42,23 +48,23 @@ def test_test_env_refuses_non_test_database():
         make(app_env="test", test_database_url="postgresql+psycopg://u:p@localhost/shopdesk")
 
 
-def test_production_requires_live_clerk_key():
+def test_production_requires_live_clerk_key(rsa_public_pem):
     with pytest.raises(ValidationError, match="live key"):
         make(
             app_env="production",
             clerk_secret_key="sk_test_123",
-            clerk_jwt_key="pem",
+            clerk_jwt_key=rsa_public_pem,
             cloudinary_url="cloudinary://k:s@cloud",
         )
 
 
-def test_production_refuses_placeholders():
+def test_production_refuses_placeholders(rsa_public_pem):
     with pytest.raises(ValidationError, match="placeholder"):
         make(
             app_env="production",
             database_url="postgresql+psycopg://u:CHANGE_ME@host/db",
             clerk_secret_key="sk_live_123",
-            clerk_jwt_key="pem",
+            clerk_jwt_key=rsa_public_pem,
             cloudinary_url="cloudinary://k:s@cloud",
         )
 

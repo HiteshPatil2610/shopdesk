@@ -72,7 +72,7 @@ export function AuthGate({ appName, children }: Props) {
     }
     return (
       <FullScreen>
-        <p className="text-lg font-semibold text-danger">Couldn't reach the {appName} server</p>
+        <p className="text-lg font-semibold text-danger">Couldn't reach {appName}</p>
         <p className="max-w-md text-text-muted">{apiErrorMessage(me.error)}</p>
         <Button onClick={() => void me.refetch()}>Try again</Button>
       </FullScreen>

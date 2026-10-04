@@ -323,6 +323,12 @@ code .env
 | `PG_BIN_DIR` | — | `C:/Program Files/PostgreSQL/18/bin` | Location of `pg_dump.exe` (v18 can dump Neon's v17) |
 
 ### 7.3 Formatting gotchas
+- **Easiest way to set `CLERK_JWT_KEY`:** let the project fetch it for you. It's Clerk's *public* key, worked out from your publishable key:
+  ```powershell
+  cd backend
+  .\venv\Scripts\python -m core.setup_tools fetch-clerk-key
+  ```
+  Then restart both API servers. Run it again whenever `CLERK_PUBLISHABLE_KEY` changes (e.g. the production instance). If the key is wrong, the API refuses to start and tells you to run this.
 - **`CLERK_JWT_KEY`** is a multi-line PEM. Put it on **one line in double quotes**, with `\n` where the line breaks were:
   ```ini
   CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqh...\n...IDAQAB\n-----END PUBLIC KEY-----"

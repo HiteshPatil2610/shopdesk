@@ -90,7 +90,20 @@ class Settings(BaseSettings):
     @classmethod
     def _unescape_pem(cls, v: str | None) -> str | None:
         # .env stores the PEM on one line with literal "\n"; Vercel may hold real newlines.
-        return v.replace("\\n", "\n").strip() if v else v
+        if not v:
+            return v
+        pem = v.replace("\\n", "\n").strip()
+        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
+        try:
+            load_pem_public_key(pem.encode())
+        except ValueError as exc:
+            raise ValueError(
+                "CLERK_JWT_KEY is not a valid PEM public key. Run "
+                "`python -m core.setup_tools fetch-clerk-key` (from backend/) to fill it in "
+                "(SETUP_GUIDE §7.3)."
+            ) from exc
+        return pem
 
     @model_validator(mode="after")
     def _check_environment(self) -> Settings:
