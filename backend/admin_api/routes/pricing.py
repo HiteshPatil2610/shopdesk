@@ -17,7 +17,9 @@ bp = Blueprint("pricing", __name__, url_prefix="/api/pricing")
 def preview() -> ResponseReturnValue:
     data = PricingPreviewIn.model_validate(request.get_json(silent=True) or {})
     rules = pricing_service.rules_from_input(data.settings) if data.settings else None
-    return jsonify(pricing_service.preview(data.cost_price, data.mp_round_mode, rules))
+    return jsonify(
+        pricing_service.preview(data.cost_price, data.mp_round_mode, rules, data.market_price)
+    )
 
 
 @bp.get("/settings")

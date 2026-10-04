@@ -1,6 +1,6 @@
 # Spec 04 — Pricing Engine (MP / SP calculator)
 
-**Status:** ⬜ Not started · **Depends on:** 01 (pure part), 03 (integration) · **Server(s):** Admin
+**Status:** ✅ Built (2026-10-04) · **Depends on:** 01 (pure part), 03 (integration) · **Server(s):** Admin
 
 ## 1. Goal
 Turn a cost price into a rounded **Market Price (MP)** and **Selling Price (SP)** with a configurable formula, show it live while typing, and let the admin change the formula settings and re-apply them to products.
@@ -21,41 +21,32 @@ BR-1, BR-2, BR-8. New:
 - **PE-3** `0 ≤ sp_markup ≤ mp_markup ≤ 500`. `rounding_step ∈ {0.01, 0.50, 1, 2, 5, 10, 50, 100}`.
 - **PE-4** Changing settings never changes existing product prices by itself. Only an explicit "Apply to products" action does, and it skips manual fields.
 
-## 5. The formula (default — replace when the owner gives the real one)
+## 5. The formula (owner's rules, 2026-10-04)
 
-```python
-def calculate(cost: Decimal, s: PricingSettings) -> PriceResult:
-    raw_mp = cost * (1 + s.mp_markup_percent / 100)
-    raw_sp = cost * (1 + s.sp_markup_percent / 100)
-    mp = round_price(raw_mp, s.rounding_mode, s.rounding_step)
-    sp = round_price(raw_sp, s.rounding_mode, s.rounding_step)
-    sp = min(sp, mp)                       # PE-2
-    if sp < cost: sp = round_price(cost, "up", s.rounding_step)
-    if mp < sp:  mp = sp
-    return PriceResult(mp=q2(mp), sp=q2(sp))
 ```
+markup  = 95% if cost < ₹500 else 90%                      (markup_low_pct / markup_high_pct / markup_threshold)
+raw_mp  = cost × (1 + markup/100)
+MP      = round UP raw_mp:
+            raw_mp ≥ ₹500 → next ₹50  (default)  or next ₹100 (bigger option)   (mp_step / mp_alt_step)
+            raw_mp < ₹500 → next ₹10  (default)  or next ₹50  (bigger option)   (small_mp_*)
+          the product stores which option was chosen (mp_round_mode = primary | alternate)
+SP      = MP − 10%, rounded DOWN to the nearest ₹10        (sp_discount_pct / sp_step)
+clamp   : cost ≤ SP ≤ MP
+```
+Owner's examples: MP 1243 → **1250**; 1412 → **1450** or **1500** (choice in the UI); SP 1293 → **1290**.
+*Note:* the owner also wrote "SP 1212 → 1200", but the rule "closest lower number ending in 0" gives **1210**. The code follows the rule. Set `sp_step = 100` if hundreds were meant.
+*Note:* because the markup drops at ₹500, cost ₹499 → MP ₹1000 but cost ₹500 → MP ₹950. This is how the rule works. Tell us if you want it smoothed.
 
-**Rounding modes** (`round_price(value, mode, step)`):
-| Mode | Rule | 296.80 with step 5 |
-|---|---|---|
-| `up` (default) | ceil to multiple of step | 300.00 |
-| `nearest` | half-up to nearest multiple | 295.00 |
-| `down` | floor to multiple | 295.00 |
-| `ends_with_9` | ceil to a multiple of step (step ≥ 10), then −1. If that's below the raw value, add one step | step 10 → 299.00 |
-| `none` | 2-decimal half-up | 296.80 |
-
-**Worked examples** (mp 40%, sp 25%, up/5):
-| Cost | raw MP | MP | raw SP | SP |
+**Worked examples** (unit-tested in `tests/unit/test_pricing.py`):
+| Cost | raw MP | MP (default) | MP (bigger) | SP |
 |---|---|---|---|---|
-| 10.00 | 14.00 | 15.00 | 12.50 | 15.00 |
-| 99.00 | 138.60 | 140.00 | 123.75 | 125.00 |
-| 212.00 | 296.80 | 300.00 | 265.00 | 265.00 |
-| 1499.00 | 2098.60 | 2100.00 | 1873.75 | 1875.00 |
-| 0.00 | 0 | 0.00 | 0 | 0.00 |
-
-(At cost 10 the SP rounds to 15 = MP. That's allowed, but the UI shows a hint: "discount gives no saving".)
-
-These rows become a **parametrised unit test**. When the formula changes, update this table and the test together.
+| 20 | 39.00 | 40.00 | 50.00 | 30.00 |
+| 212 | 413.40 | 420.00 | 450.00 | 370.00 |
+| 499 | 973.05 | 1000.00 | — | 900.00 |
+| 500 | 950.00 | 950.00 | 1000.00 | 850.00 |
+| 650 | 1235.00 | 1250.00 | 1300.00 | 1120.00 |
+| 743 | 1411.70 | 1450.00 | 1500.00 | 1300.00 (bigger MP → 1350.00) |
+| 0 | 0.00 | 0.00 | — | 0.00 |
 
 ## 6. Data model changes
 Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one row (id=1) of defaults, plus `CHECK (id = 1)`.
@@ -74,13 +65,13 @@ Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one
 - **Pricing settings page** (ui-context §3.9): form + live examples table (preview with unsaved settings) + "Save" + "Apply to products…" (dry-run modal showing the count and a sample diff table → Confirm).
 
 ## 9. Tasks
-- [ ] 1. `core/pricing.py` + `round_price` + `PriceResult`. Exhaustive unit tests including the examples table and property-style tests (random costs 0–100000, assert PE-2 always holds).
-- [ ] 2. `PricingSettings` model + migration + seed.
-- [ ] 3. `pricing_service`: `get_settings`, `update_settings` (validate PE-3, audit), `preview`, `apply_to_products(dry_run)`, `recalculate_product`.
-- [ ] 4. Routes.
-- [ ] 5. Wire into `product_service.create/update` (spec 03).
-- [ ] 6. Settings page + preview in the product form.
-- [ ] 7. Tests.
+- [x] 1. `core/pricing.py` + `round_price` + `PriceResult`. Exhaustive unit tests including the examples table and property-style tests (random costs 0–100000, assert PE-2 always holds).
+- [x] 2. `PricingSettings` model + migration + seed.
+- [x] 3. `pricing_service`: `get_settings`, `update_settings` (validate PE-3, audit), `preview`, `apply_to_products(dry_run)`, `recalculate_product`.
+- [x] 4. Routes.
+- [x] 5. Wire into `product_service.create/update` (spec 03).
+- [x] 6. Settings page + preview in the product form.
+- [x] 7. Tests.
 
 ## 10. Acceptance criteria
 - [ ] All rows of the worked-examples table pass as unit tests.
@@ -96,4 +87,4 @@ Migration `0004_pricing_settings`: table per architecture §5.4, seeded with one
 - API: roles, preview with custom settings.
 
 ## 12. Open questions
-- **Q1:** the owner's real formula. Only §5, `pricing.py` and its tests change.
+- ~~Q1: owner's formula~~ Done (§5). Open: confirm SP 1212 → 1210 (rule) vs 1200 (example), and the ₹499/₹500 MP jump.

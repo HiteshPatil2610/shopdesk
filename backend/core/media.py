@@ -96,6 +96,16 @@ class CloudinaryStore:
                 resource_type="image",
             )
         except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning("Cloudinary upload failed: %s", exc)
+            if "api_key" in str(exc).lower() or "signature" in str(exc).lower():
+                raise AppError(
+                    "Cloudinary rejected the credentials. Check CLOUDINARY_URL in the server "
+                    "settings.",
+                    code="MEDIA_AUTH_FAILED",
+                    status=502,
+                ) from exc
             raise AppError(
                 "Couldn't upload the image. Try again.", code="IMAGE_UPLOAD_FAILED", status=502
             ) from exc
@@ -110,17 +120,32 @@ class CloudinaryStore:
 _store: MediaStore | None = None
 
 
+def cloudinary_url_problem(url: str | None) -> str | None:
+    """Explain what's wrong with CLOUDINARY_URL, or None if it looks usable."""
+    if not url:
+        return "CLOUDINARY_URL is not set"
+    parts = urlsplit(url)
+    if parts.scheme != "cloudinary" or not parts.hostname:
+        return "CLOUDINARY_URL must look like cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+    if not parts.username or not parts.password or "<" in url or "API_KEY" in url:
+        return (
+            "CLOUDINARY_URL still has placeholder text (<your_api_key>/<your_api_secret>). "
+            "Copy the real API key and secret from Cloudinary → Settings → API Keys"
+        )
+    return None
+
+
 def get_media_store() -> MediaStore:
     global _store
     if _store is None:
-        url = get_settings().cloudinary_url
-        if not url:
+        problem = cloudinary_url_problem(get_settings().cloudinary_url)
+        if problem:
             raise AppError(
-                "Image uploads aren't configured (CLOUDINARY_URL)",
+                f"Image uploads aren't set up: {problem}.",
                 code="MEDIA_NOT_CONFIGURED",
                 status=503,
             )
-        _store = CloudinaryStore(url)
+        _store = CloudinaryStore(get_settings().cloudinary_url or "")
     return _store
 
 

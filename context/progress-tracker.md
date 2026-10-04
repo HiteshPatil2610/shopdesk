@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 1 ✅ (specs 01–02 done) → next: **spec 03 + 04 (products + pricing)**
+**Current phase:** Phase 2. Specs 03–04 built (owner to try in the UI) → next: **spec 05 (audit log viewer)**, then 06–07
 **Last updated:** 2026-10-04
 
 ## Status overview
@@ -12,8 +12,8 @@
 | 0 | Context docs | ✅ Done | This folder |
 | 1 | [01 Project setup](specs/01-project-setup.md) | ✅ Done | Both APIs + both web apps run against Neon. 36 backend + 9 frontend tests |
 | 1 | [02 Authentication](specs/02-authentication.md) | ✅ Done | Owner verified sign-in, user creation and cashier blocking on 2026-10-04 |
-| 2 | [03 Product management](specs/03-product-management.md) | ⬜ Not started | |
-| 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ⬜ Not started | Needs the owner's final formula (Q1) |
+| 2 | [03 Product management](specs/03-product-management.md) | ✅ Built | Image upload waits on a real CLOUDINARY_URL (placeholder in .env) |
+| 2 | [04 Pricing engine](specs/04-pricing-engine.md) | ✅ Built | Owner's formula. Settings page + apply |
 | 2 | [05 Audit log](specs/05-audit-log.md) | 🟨 Partly done | Table, trigger and `audit_service` built in spec 02. Viewer + CSV still to do |
 | 3 | [06 POS billing](specs/06-pos-billing.md) | ⬜ Not started | |
 | 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ⬜ Not started | |
@@ -42,7 +42,9 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | # | Question | Default if no answer | Status |
 |---|---|---|---|
-| Q1 | What's the exact MP/SP formula? | MP = cost × 1.40, SP = cost × 1.25, both rounded **up** to nearest ₹5 | Open |
+| Q1 | ~~MP/SP formula~~ | Owner's rule (spec 04 §5) | ✅ 2026-10-04 |
+| Q10 | SP 1212 → 1210 (stated rule) or 1200 (example)? | 1210 (`sp_step` = 10) | Open |
+| Q11 | Keep the MP jump at cost ₹500 (₹499 → MP 1000, ₹500 → MP 950)? | Keep as specified | Open |
 | Q2 | Should "Apply Discount" need a manager PIN? | No. Any cashier can apply it, and it's audited | Open |
 | Q3 | Shop name/address/phone for receipts? | Set in `.env` (`SHOP_NAME`, …) | Open |
 | Q4 | Are fractional quantities needed (e.g. 1.5 kg)? | No. Integers only in v1 | Open |
@@ -107,3 +109,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude | **Spec 01 built**: `backend/` (core config/db/errors/money/health, admin_api + pos_api factories, Vercel entry, Alembic baseline applied to Neon dev), `frontend/` (npm workspaces: shared pkg + admin-web + pos-web, Tailwind v4, Vitest), CI workflow, pre-commit, dev.ps1, README. Created Neon DB `shopdesk_test` + set TEST_DATABASE_URL. All checks green locally | Spec 02 (Clerk auth) |
 | 2026-10-04 | Claude | **Spec 02 built**: users/webhook/audit tables (migration 0002, applied to Neon dev), Clerk JWT verification with `azp` + role checks, JIT mirror, user management via Clerk SDK, signed webhooks, `promote-admin` CLI, default-deny route test. Frontend: Clerk sign-in, AuthGate + wrong-app screen, admin layout + Users page, POS shell + pre-warm. CI actions bumped to v7 | Owner: sign in as `owner` on both apps (SETUP_GUIDE §9.3). Then specs 03 + 04 |
 | 2026-10-04 | Claude + owner | Fixed setup issues found in the manual test: partial CLERK_JWT_KEY (now validated at startup + `setup_tools fetch-clerk-key`), empty owner metadata (promote-admin), top-level `role` claim now accepted. Fixed modal focus-jump bug. Owner confirmed everything works | Specs 03 + 04 |
+| 2026-10-04 | Claude | **Specs 03 + 04 built**: owner's pricing formula (pure, 27 unit tests), pricing settings + dry-run apply, products CRUD with categories, barcode, images (Pillow → Cloudinary), optimistic locking, stock ledger opening rows, POS cost-free list/lookup. Admin UI: products list, add/edit with live MP options + manual overrides, pricing rules page. POS product panel. 152+ backend, 47 frontend tests | Owner: fix CLOUDINARY_URL placeholders, try adding products. Next: spec 05 |

@@ -1,6 +1,6 @@
 # Spec 03 — Product Management
 
-**Status:** ⬜ Not started · **Depends on:** 02 (04 for auto-pricing; build 03 + 04 together) · **Server(s):** Admin (write), POS (read-only list)
+**Status:** ✅ Built (2026-10-04) · **Depends on:** 02 (04 for auto-pricing; build 03 + 04 together) · **Server(s):** Admin (write), POS (read-only list)
 
 ## 1. Goal
 Managers can add, view, edit and deactivate products with an image, name, category, quantity and cost price. MP/SP are filled automatically by the pricing engine (spec 04) and can be edited. The POS can list and look up active products without seeing cost price.
@@ -63,15 +63,15 @@ Admin-web: product list, add and edit pages exactly as ui-context §3.3–3.4. E
 POS-web: product list panel component (search box, virtualised list if > 200 items, click adds qty 1 to cart). It's built here and wired to the cart in spec 06.
 
 ## 8. Tasks
-- [ ] 1. Models + migration (`Category`, `Product`, `StockMovement`, sequence, constraints).
-- [ ] 2. `media.py`: `validate_and_encode(file) -> bytes`, `upload_product_image(bytes) -> public_id`, `delete_image(public_id)`, `image_url(public_id, size)`. Tests use small fixture images, a fake "image" that is really a text file, and a mocked Cloudinary SDK.
-- [ ] 3. Pydantic schemas: `ProductCreate`, `ProductUpdate`, `ProductOut`, `PosProductOut`, `ProductListQuery`.
-- [ ] 4. `product_service`: `create`, `update` (optimistic lock + recalculation rules), `set_active`, `replace_image`, `list`, `get`, `lookup_by_code_or_barcode`. Each write records an audit entry with a field-level diff.
-- [ ] 5. Admin routes + category routes.
-- [ ] 6. POS routes (read-only).
-- [ ] 7. Admin-web: list page, add/edit form with live price preview (spec 04 endpoint), image dropzone, manual badges, version-conflict modal.
-- [ ] 8. POS-web: product list panel component.
-- [ ] 9. Tests.
+- [x] 1. Models + migration (`Category`, `Product`, `StockMovement`, sequence, constraints).
+- [x] 2. `media.py`: `validate_and_encode(file) -> bytes`, `upload_product_image(bytes) -> public_id`, `delete_image(public_id)`, `image_url(public_id, size)`. Tests use small fixture images, a fake "image" that is really a text file, and a mocked Cloudinary SDK.
+- [x] 3. Pydantic schemas: `ProductCreate`, `ProductUpdate`, `ProductOut`, `PosProductOut`, `ProductListQuery`.
+- [x] 4. `product_service`: `create`, `update` (optimistic lock + recalculation rules), `set_active`, `replace_image`, `list`, `get`, `lookup_by_code_or_barcode`. Each write records an audit entry with a field-level diff.
+- [x] 5. Admin routes + category routes.
+- [x] 6. POS routes (read-only).
+- [x] 7. Admin-web: list page, add/edit form with live price preview (spec 04 endpoint), image dropzone, manual badges, version-conflict modal.
+- [x] 8. POS-web: product list panel component.
+- [x] 9. Tests.
 
 ## 9. Acceptance criteria
 - [ ] Creating "Steel bottle", cost 212, qty 14 with no MP/SP → saved with MP 300, SP 265 (default settings), code `P00001`, one `stock_movements` row `+14 initial`, one audit row `product.create`.
@@ -89,5 +89,12 @@ POS-web: product list panel component (search box, virtualised list if > 200 ite
 - API: role checks, validation errors, POS field exposure.
 - Frontend: form validation (Zod mirrors BR-2), manual badge toggling, preview debounce.
 
-## 11. Open questions
+## 11. Implementation notes
+- Optimistic locking uses SQLAlchemy `version_id_col`. The client also sends `version`, and a mismatch gives 409 with who/when.
+- Opening stock is inserted with the product, and a matching `initial` ledger row is written (version starts at 1).
+- Each product stores `mp_round_mode` (primary/alternate) so cost changes keep the owner's rounding choice.
+- `POST /api/pricing/preview` accepts an optional manual `market_price` so the form can show the matching SP without browser maths.
+- The browser resizes photos to ≤1024px WebP before upload (Vercel 4.5 MB limit). The server re-validates.
+
+## 12. Open questions
 - Q4: fractional quantities (kg)? v1 = integers only.

@@ -99,9 +99,25 @@ def _pct(value: Decimal | None) -> str | None:
     return money_str(value) if value is not None else None
 
 
-def preview(cost: Decimal, mode: MpMode, rules: PricingRules | None = None) -> dict[str, Any]:
-    result = calculate(cost, rules or get_rules(), mp_mode=mode)
-    return preview_out(result, cost)
+def preview(
+    cost: Decimal,
+    mode: MpMode,
+    rules: PricingRules | None = None,
+    market_price: Decimal | None = None,
+) -> dict[str, Any]:
+    rules = rules or get_rules()
+    result = calculate(cost, rules, mp_mode=mode)
+    out = preview_out(result, cost)
+    if market_price is not None:
+        from core.pricing import selling_price_for
+
+        sp = selling_price_for(market_price, cost, rules) if market_price >= cost else None
+        out["market_price"] = money_str(market_price)
+        out["selling_price"] = money_str(sp) if sp is not None else None
+        out["mp_margin_pct"] = _pct(margin_pct(market_price, cost))
+        out["sp_margin_pct"] = _pct(margin_pct(sp, cost)) if sp is not None else None
+        out["manual_market_price"] = True
+    return out
 
 
 def reprice(product: Product, rules: PricingRules) -> dict[str, list[Any]]:

@@ -124,3 +124,23 @@ def test_manager_cannot_apply(dbs, admin_client, as_role):
         admin_client.post("/api/pricing/apply", headers=as_role("manager"), json={}).status_code
         == 403
     )
+
+
+def test_preview_with_manual_mp_returns_matching_sp(dbs, admin_client, as_role):
+    res = admin_client.post(
+        "/api/pricing/preview",
+        headers=as_role("manager"),
+        json={"cost_price": "743", "market_price": "1293"},
+    )
+    body = res.get_json()
+    assert (body["market_price"], body["selling_price"]) == ("1293.00", "1160.00")
+    assert body["manual_market_price"] is True
+
+
+def test_preview_manual_mp_below_cost_has_no_sp(dbs, admin_client, as_role):
+    res = admin_client.post(
+        "/api/pricing/preview",
+        headers=as_role("manager"),
+        json={"cost_price": "743", "market_price": "500"},
+    )
+    assert res.get_json()["selling_price"] is None

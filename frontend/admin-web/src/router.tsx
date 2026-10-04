@@ -5,6 +5,10 @@ import { Layout } from './components/Layout';
 import { RequireRole } from './components/RequireRole';
 import { DashboardPage } from './pages/DashboardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PricingSettingsPage } from './pages/PricingSettingsPage';
+import { ProductEditPage } from './pages/ProductEditPage';
+import { ProductNewPage } from './pages/ProductNewPage';
+import { ProductsPage } from './pages/ProductsPage';
 import { UsersPage } from './pages/UsersPage';
 
 export const router = createBrowserRouter([
@@ -18,6 +22,17 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: 'products', element: <ProductsPage /> },
+      { path: 'products/new', element: <ProductNewPage /> },
+      { path: 'products/:id', element: <ProductEditPage /> },
+      {
+        path: 'settings/pricing',
+        element: (
+          <RequireRole roles={['admin']}>
+            <PricingSettingsPage />
+          </RequireRole>
+        ),
+      },
       {
         path: 'users',
         element: (

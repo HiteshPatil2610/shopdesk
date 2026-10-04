@@ -141,6 +141,7 @@ Use the **plain** `postgresql://` form for psql. It should print `PostgreSQL 17.
 1. Sign up at https://cloudinary.com (free plan).
 2. **Dashboard / Settings → API Keys**: copy the **API environment variable**. It looks like `CLOUDINARY_URL=cloudinary://123456789012345:AbCdEf...@your-cloud-name`
    → paste the part after `=` into `CLOUDINARY_URL` (**secret!**).
+   ⚠️ The dashboard shows it as `cloudinary://<your_api_key>:<your_api_secret>@your-cloud`. **Replace the `<…>` parts** with the real **API Key** and **API Secret** listed on the same page (click the eye icon to reveal the secret). The final value has no `<` or `>`.
 3. You don't need to create folders. They're created on the first upload (`shopdesk-dev/products` for dev).
 
 ✅ **Check:** the dashboard shows your **cloud name**, and it matches the end of `CLOUDINARY_URL`.
@@ -509,7 +510,7 @@ Notes:
 | Sign-up form appears, or strangers can create accounts | Clerk Access mode is still **Open**. Set it to **Invite-only** (§3.3 step 7) |
 | Can't find a Clerk setting mentioned here | Clerk renames pages. Use the dashboard's search box, or the direct links in §3.3 (select the ShopDesk app first) |
 | Clerk sign-in widget is blank in production | CSP blocks Clerk domains. See spec 09 task 1, and check the browser console |
-| Image upload → 401 from Cloudinary | Wrong `CLOUDINARY_URL`. Re-copy it from the dashboard |
+| Image upload: "Image uploads aren't set up… placeholder text" or "Cloudinary rejected the credentials" | `CLOUDINARY_URL` still contains `<your_api_key>`/`<your_api_secret>`, or a wrong key. See §3.4, then restart the API servers |
 | Images upload but don't show | Check `thumb_url` in the API response opens in the browser, and that CSP allows `res.cloudinary.com` |
 | CORS error in the browser | In dev, use :5173/:5174 (the Vite proxy). In prod, check `*_CORS_ORIGINS` |
 | `Address already in use` | `Get-NetTCPConnection -LocalPort 5001 \| Select OwningProcess`, then close that program |

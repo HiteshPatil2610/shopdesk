@@ -127,4 +127,6 @@ class PricingSettingsIn(_Strict):
 class PricingPreviewIn(_Strict):
     cost_price: MoneyIn
     mp_round_mode: MpMode = "primary"
+    # A manually typed MP: the preview then returns the SP that follows from it.
+    market_price: Annotated[MoneyIn | None, BeforeValidator(_blank_to_none)] = None
     settings: PricingSettingsIn | None = None  # preview unsaved settings on the settings page

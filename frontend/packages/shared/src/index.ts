@@ -5,7 +5,18 @@ export { AuthGate, useMe } from './auth/AuthGate';
 export { ClerkConfigError } from './auth/ClerkConfigError';
 export { SignInPage } from './auth/SignInPage';
 export { WrongAppScreen } from './auth/WrongAppScreen';
-export { formatINR } from './money';
+export { UNITS } from './catalog';
+export type {
+  Category,
+  MpMode,
+  MpOption,
+  Page,
+  PosProduct,
+  PricingPreview,
+  PricingSettings,
+  Product,
+} from './catalog';
+export { compareMoney, formatINR, isMoneyInput } from './money';
 export { Badge, RoleBadge } from './ui/Badge';
 export { Button } from './ui/Button';
 export { SelectField, TextField } from './ui/Field';

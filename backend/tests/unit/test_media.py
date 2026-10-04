@@ -53,3 +53,27 @@ def test_exif_is_stripped():
 
 def test_transform_strings():
     assert "w_256" in TRANSFORMS["thumb"] and "f_auto" in TRANSFORMS["full"]
+
+
+@pytest.mark.parametrize(
+    ("url", "fragment"),
+    [
+        (None, "not set"),
+        ("https://x", "must look like"),
+        ("cloudinary://<your_api_key>:<your_api_secret>@cud8ytoj", "placeholder"),
+        ("cloudinary://API_KEY:API_SECRET@cloud", "placeholder"),
+    ],
+)
+def test_cloudinary_url_problems_are_explained(url, fragment):
+    from core.media import cloudinary_url_problem
+
+    assert fragment in (cloudinary_url_problem(url) or "")
+
+
+def test_real_looking_cloudinary_url_is_ok():
+    from core.media import cloudinary_url_problem
+
+    assert (
+        cloudinary_url_problem("cloudinary://123456789012345:abcdefGHIJKLmnop_qrstuv@cud8ytoj")
+        is None
+    )
