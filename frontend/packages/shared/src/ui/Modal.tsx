@@ -15,6 +15,12 @@ const widths = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl' };
 export function Modal({ open, title, onClose, children, footer, size = 'md' }: Props) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+  // Keep the latest onClose without re-running the open effect: parents usually pass a new
+  // function every render, and re-running would steal focus back to the first field while typing.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -24,14 +30,14 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
     );
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
       previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
