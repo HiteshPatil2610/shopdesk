@@ -1,6 +1,6 @@
 # Spec 08 — Dashboard & Reports
 
-**Status:** ⬜ Not started · **Depends on:** 07 · **Server(s):** Admin
+**Status:** ✅ Built (2026-10-05) · **Depends on:** 07 · **Server(s):** Admin
 
 ## 1. Goal
 Give the owner a one-glance view of today's business (sales, profit, orders, low stock) and simple reports they can export.
@@ -36,18 +36,24 @@ Profit = `Σ (unit_price_charged − unit_cost) × qty` from **snapshots** in `o
 Dashboard per ui-context §3.8: 4 KPI cards (with "vs yesterday" ▲▼ %), 14-day sales bar chart (Chart.js), top-5 products bar, low-stock table with a "Restock" button that opens the stock adjust modal from spec 07. Date picker for viewing another day. Reports page: date range + Export CSV + cashier summary table. Auto-refresh every 60 s (TanStack Query `refetchInterval`).
 
 ## 8. Tasks
-- [ ] 1. `report_service` with SQL aggregation (SQLAlchemy core, `func.sum`, `date_trunc` at `Asia/Kolkata`).
-- [ ] 2. Routes + CSV streaming (same formula-injection escaping as spec 05).
-- [ ] 3. Dashboard page + charts (follow the dataviz palette; accessible colours, tooltips with ₹ formatting).
-- [ ] 4. Reports page.
-- [ ] 5. Tests with seeded orders across dates and statuses.
+- [x] 1. `report_service` with SQL aggregation (SQLAlchemy core, `func.sum`, `date_trunc` at `Asia/Kolkata`).
+- [x] 2. Routes + CSV streaming (same formula-injection escaping as spec 05).
+- [x] 3. Dashboard page + charts (follow the dataviz palette; accessible colours, tooltips with ₹ formatting).
+- [x] 4. Reports page.
+- [x] 5. Tests with seeded orders across dates and statuses.
 
 ## 9. Acceptance criteria
-- [ ] Seed: 3 confirmed orders today (₹605, ₹300, ₹85) + 1 rejected → summary sales ₹990.00, orders 3 confirmed / 1 rejected.
-- [ ] Profit uses snapshot cost. Changing a product's cost later doesn't change past profit.
-- [ ] An order at 23:59 IST and one at 00:01 IST fall on different days.
-- [ ] Low-stock list includes a product with qty 2 and reorder 5, and excludes inactive products.
-- [ ] Cashier role gets no access (it's not even routed on POS).
+- [x] Seed: 3 confirmed orders today (₹605, ₹300, ₹85) + 1 rejected → summary sales ₹990.00, orders 3 confirmed / 1 rejected. *(test)*
+- [x] Profit uses snapshot cost. Changing a product's cost later doesn't change past profit. *(test)*
+- [x] An order at 23:59 IST and one at 00:01 IST fall on different days. *(test)*
+- [x] Low-stock list includes a product with qty 2 and reorder 5, and excludes inactive products. *(test)*
+- [x] Cashier role gets no access (it's not even routed on POS). *(test)*
 
 ## 10. Tests
 Service aggregation correctness, timezone boundary, CSV columns and escaping, role checks.
+
+## 11. Implementation notes (2026-10-05)
+- `summary` also returns `previous` (the day before) and server-computed `change_pct` for sales, profit and orders, so the browser does no money maths.
+- Day grouping uses `timezone('Asia/Kolkata', created_at)::date` in SQL. Ranges are inclusive IST dates, default the last 14 days, max 366.
+- The sales CSV is **admin-only** (financial data, consistent with the audit export), formula-safe, has a BOM for Excel, and is audited as `report.export`.
+- Charts: Chart.js single-series bars in the validated chart hue (`--color-chart-1`, light/dark), 4px rounded ends, recessive grid, ₹ tooltips and a "Show as table" view. Admin pages are lazy-loaded so the chart library only loads with Dashboard/Reports.

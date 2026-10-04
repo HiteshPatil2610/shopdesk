@@ -9,6 +9,7 @@ const NAV: NavItem[] = [
   { to: '/products', label: 'Products', icon: '📦', roles: ['admin', 'manager'] },
   { to: '/stock', label: 'Stock', icon: '▤', roles: ['admin', 'manager'] },
   { to: '/orders', label: 'Orders', icon: '🧾', roles: ['admin', 'manager'] },
+  { to: '/reports', label: 'Reports', icon: '📈', roles: ['admin', 'manager'] },
   { to: '/audit', label: 'Audit log', icon: '≡', roles: ['admin', 'manager'] },
   { to: '/settings/pricing', label: 'Pricing rules', icon: '₹', roles: ['admin'] },
   { to: '/users', label: 'Users', icon: '👥', roles: ['admin'] },
