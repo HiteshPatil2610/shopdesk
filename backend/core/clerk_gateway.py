@@ -33,6 +33,7 @@ class ClerkGateway(Protocol):
     def reset_password(self, user_id: str, password: str) -> None: ...
     def ban(self, user_id: str) -> None: ...
     def unban(self, user_id: str) -> None: ...
+    def revoke_sessions(self, user_id: str) -> int: ...
 
 
 def split_name(full_name: str) -> tuple[str, str | None]:
@@ -135,6 +136,27 @@ class SdkClerkGateway:
 
     def unban(self, user_id: str) -> None:
         self._call(self._clerk.users.unban, user_id=user_id)
+
+    def revoke_sessions(self, user_id: str) -> int:
+        # Collect before revoking: changing active sessions while paginating would skip rows.
+        ids: list[str] = []
+        offset = 0
+        while True:
+            rows = self._call(
+                self._clerk.sessions.list,
+                user_id=user_id,
+                status="active",
+                paginated=True,
+                limit=100,
+                offset=offset,
+            )
+            ids.extend(row.id for row in rows)
+            if len(rows) < 100:
+                break
+            offset += len(rows)
+        for session_id in ids:
+            self._call(self._clerk.sessions.revoke, session_id=session_id)
+        return len(ids)
 
 
 _gateway: ClerkGateway | None = None

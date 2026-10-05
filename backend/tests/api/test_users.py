@@ -8,6 +8,33 @@ from core.models import AuditLog, User
 pytestmark = pytest.mark.db
 
 
+def test_revoke_sessions_is_audited(dbs, admin_client, as_owner, owner, fake_clerk):
+    response = admin_client.post(f"/api/users/{owner.id}/revoke-sessions", headers=as_owner)
+    assert response.status_code == 200 and response.get_json()["sessions_revoked"] == 2
+    assert ("revoke_sessions", (owner.clerk_user_id,)) in fake_clerk.calls
+    row = dbs.scalar(select(AuditLog).where(AuditLog.action == "user.sessions_revoke"))
+    assert row.metadata_["sessions_revoked"] == 2
+
+
+def test_failed_revocation_is_audited(dbs, admin_client, as_owner, owner, fake_clerk, monkeypatch):
+    from core.errors import AppError
+
+    def fail(_user_id):
+        raise AppError("Clerk unavailable", status=502)
+
+    monkeypatch.setattr(fake_clerk, "revoke_sessions", fail)
+    response = admin_client.post(f"/api/users/{owner.id}/revoke-sessions", headers=as_owner)
+    assert response.status_code == 502
+    assert dbs.scalar(select(AuditLog).where(AuditLog.action == "user.sessions_revoke_failed"))
+
+
+@pytest.mark.parametrize("role", ["manager", "cashier"])
+def test_non_admin_cannot_revoke_sessions(dbs, admin_client, auth_header, fake_clerk, role):
+    response = admin_client.post("/api/users/1/revoke-sessions", headers=auth_header(role=role))
+    assert response.status_code == 403
+    assert not fake_clerk.calls
+
+
 @pytest.fixture()
 def owner(dbs):
     user = User(clerk_user_id="user_owner", username="owner", full_name="Owner", role="admin")

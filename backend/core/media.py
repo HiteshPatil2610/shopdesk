@@ -38,6 +38,8 @@ def validate_and_encode(raw: bytes, max_mb: int) -> bytes:
         raise AppError(f"Image is larger than {max_mb} MB", code="IMAGE_TOO_LARGE", status=413)
     try:
         with Image.open(io.BytesIO(raw)) as probe:
+            if probe.width * probe.height > MAX_PIXELS:
+                raise Image.DecompressionBombError("Image pixel count exceeds the limit")
             fmt = probe.format
             probe.verify()
         if fmt not in ALLOWED_FORMATS:
@@ -98,7 +100,7 @@ class CloudinaryStore:
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).warning("Cloudinary upload failed: %s", exc)
+            logging.getLogger(__name__).warning("Cloudinary upload failed (%s)", type(exc).__name__)
             if "api_key" in str(exc).lower() or "signature" in str(exc).lower():
                 raise AppError(
                     "Cloudinary rejected the credentials. Check CLOUDINARY_URL in the server "

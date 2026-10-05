@@ -374,7 +374,7 @@ JSON over HTTPS. Base path `/api`. Error shape: `{ "error": { "code", "message",
 | GET | /api/audit-logs/export.csv | admin |
 | GET | /api/reports/* | mgr+ |
 | GET/POST/PATCH | /api/users, /api/users/{id} | admin |
-| POST | /api/users/{id}/reset-password · /ban · /unban | admin |
+| POST | /api/users/{id}/reset-password · /ban · /unban · /revoke-sessions | admin |
 
 ### 7.2 POS API (Server 2)
 | Method | Path | Role |
@@ -414,6 +414,17 @@ Image URLs in responses point straight at Cloudinary's CDN (`https://res.cloudin
 | Storage | Free tier ≈ 0.5 GB per project, plenty for text data. Images are in Cloudinary, not the DB |
 
 ## 10. Configuration
+
+Spec 09 adds `core/hardening.py`: separate shared write (120/min), quote (300/min),
+CSV (5/min) and webhook (60/min) buckets, keyed by verified Clerk subject or direct IP.
+Production uses TLS Redis without a memory fallback. API responses receive no-store,
+nosniff, frame denial and a JSON-only CSP; production adds HSTS. Runtime production
+configuration requires exact HTTPS origins, `shopdesk_app` with TLS, live Clerk keys
+and Redis. Web CSP is generated for exact deployment hosts; production builds reject
+test keys or CSP mismatches. `MANUAL_DEPLOYMENT.md` describes manual deployment and
+restricted DB roles. Backups require a private repository; migration workflows reapply
+grants after successful migrations. These scripts do not establish production readiness
+until the owner completes the production permission/header/backup/restore checks.
 
 The backend reads env vars, from the root `.env` in development or each Vercel API project's *Environment Variables* in production. The frontends read `VITE_*` vars at build time (each Vercel frontend project's settings in production). **Full list: [SETUP_GUIDE.md §7–8](../SETUP_GUIDE.md).** Key ones:
 

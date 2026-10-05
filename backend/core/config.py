@@ -9,14 +9,14 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-PLACEHOLDER_MARKERS = ("CHANGE_ME", "API_KEY:API_SECRET", "ep-xxxx")
+PLACEHOLDER_MARKERS = ("change_me", "api_key:api_secret", "ep-xxxx", "<", ">", "your_api_")
 
 
 def normalize_db_url(url: str) -> str:
@@ -127,8 +127,42 @@ class Settings(BaseSettings):
             if self.clerk_secret_key and self.clerk_secret_key.startswith("sk_test_"):
                 raise ValueError("Production must use a Clerk live key (sk_live_...)")
             for name, value in self.model_dump().items():
-                if isinstance(value, str) and any(m in value for m in PLACEHOLDER_MARKERS):
+                if isinstance(value, str) and any(m in value.lower() for m in PLACEHOLDER_MARKERS):
                     raise ValueError(f"{name.upper()} still contains a placeholder value")
+            if not (self.clerk_secret_key or "").startswith("sk_live_"):
+                raise ValueError("Production requires a Clerk live key")
+            if self.clerk_publishable_key and not self.clerk_publishable_key.startswith("pk_live_"):
+                raise ValueError("Production requires a Clerk live publishable key")
+            if not self.ratelimit_storage_uri.startswith("rediss://"):
+                raise ValueError("Production RATELIMIT_STORAGE_URI must use rediss://")
+            if self.db_echo:
+                raise ValueError("Production DB_ECHO must be false")
+            for name in (
+                "admin_cors_origins",
+                "pos_cors_origins",
+                "admin_authorized_parties",
+                "pos_authorized_parties",
+            ):
+                origins = self.split_csv(getattr(self, name))
+                if not origins or any(
+                    urlsplit(origin).scheme != "https"
+                    or not urlsplit(origin).hostname
+                    or "*" in origin
+                    or urlsplit(origin).path
+                    or urlsplit(origin).query
+                    or urlsplit(origin).fragment
+                    for origin in origins
+                ):
+                    raise ValueError(f"Production {name.upper()} requires exact HTTPS origins")
+            db_url = urlsplit(self.database_url)
+            if db_url.username != "shopdesk_app":
+                raise ValueError("Production DATABASE_URL must use shopdesk_app")
+            if parse_qs(db_url.query).get("sslmode", [""])[0] not in {
+                "require",
+                "verify-ca",
+                "verify-full",
+            }:
+                raise ValueError("Production DATABASE_URL must require TLS")
         return self
 
     # Derived values -------------------------------------------------------

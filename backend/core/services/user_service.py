@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from core.actor import ActorContext
 from core.clerk_gateway import get_gateway
 from core.db import db, transaction
-from core.errors import BusinessRuleError, ConflictError, NotFoundError
+from core.errors import AppError, BusinessRuleError, ConflictError, NotFoundError
 from core.models import User
 from core.schemas.users import PasswordReset, UserCreate, UserUpdate
 from core.services import audit_service
@@ -124,6 +124,33 @@ def reset_password(user_id: int, data: PasswordReset, actor: ActorContext) -> No
             user.id,
             f"Password reset for {user.display_name} (signed out of all devices)",
         )
+
+
+def revoke_sessions(user_id: int, actor: ActorContext) -> int:
+    """Revoke the user's active Clerk sessions and audit the operation (spec 09)."""
+    user = _get(user_id)
+    try:
+        count = get_gateway().revoke_sessions(user.clerk_user_id)
+    except AppError:
+        with transaction():
+            audit_service.record(
+                actor,
+                "user.sessions_revoke_failed",
+                "user",
+                user.id,
+                f"Session revocation failed for {user.display_name}; some sessions may have been revoked",
+            )
+        raise
+    with transaction():
+        audit_service.record(
+            actor,
+            "user.sessions_revoke",
+            "user",
+            user.id,
+            f"Signed out {user.display_name} from all devices",
+            metadata={"sessions_revoked": count},
+        )
+    return count
 
 
 def set_active(user_id: int, active: bool, actor: ActorContext) -> User:

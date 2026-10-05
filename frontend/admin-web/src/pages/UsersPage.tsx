@@ -11,7 +11,13 @@ import {
 } from '@shopdesk/shared';
 import { useState } from 'react';
 
-import { useSetActive, useUpdateUser, useUsers, type AdminUser } from '../features/users/api';
+import {
+  useRevokeSessions,
+  useSetActive,
+  useUpdateUser,
+  useUsers,
+  type AdminUser,
+} from '../features/users/api';
 import { AddUserModal } from '../features/users/AddUserModal';
 import { ResetPasswordModal } from '../features/users/ResetPasswordModal';
 
@@ -29,11 +35,13 @@ export function UsersPage() {
   const users = useUsers();
   const updateUser = useUpdateUser();
   const setActive = useSetActive();
+  const revokeSessions = useRevokeSessions();
+  const [signingOut, setSigningOut] = useState<AdminUser | null>(null);
   const [adding, setAdding] = useState(false);
   const [details, setDetails] = useState<AdminUser | null>(null);
   const [resetting, setResetting] = useState<UserPublic | null>(null);
   const [confirming, setConfirming] = useState<UserPublic | null>(null);
-  const actionError = updateUser.error ?? setActive.error;
+  const actionError = updateUser.error ?? setActive.error ?? revokeSessions.error;
 
   return (
     <section className="flex flex-col gap-4">
@@ -50,6 +58,12 @@ export function UsersPage() {
       {actionError && (
         <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
           {apiErrorMessage(actionError)}
+        </p>
+      )}
+      {revokeSessions.isSuccess && (
+        <p role="status">
+          Signed out from all devices. Existing access may continue briefly; deactivate the account
+          to block access immediately.
         </p>
       )}
 
@@ -120,6 +134,16 @@ export function UsersPage() {
                         <Button size="sm" variant="secondary" onClick={() => setResetting(u)}>
                           Reset password
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            revokeSessions.reset();
+                            setSigningOut(u);
+                          }}
+                        >
+                          Sign out all devices
+                        </Button>
                         {!isMe &&
                           (u.is_active ? (
                             <Button size="sm" variant="danger" onClick={() => setConfirming(u)}>
@@ -145,6 +169,28 @@ export function UsersPage() {
       </div>
 
       <AddUserModal open={adding} onClose={() => setAdding(false)} />
+      <Modal
+        open={signingOut !== null}
+        title="Sign out all devices?"
+        onClose={() => setSigningOut(null)}
+        footer={
+          <Button
+            disabled={revokeSessions.isPending}
+            onClick={() => {
+              if (signingOut)
+                revokeSessions.mutate(signingOut.id, { onSuccess: () => setSigningOut(null) });
+            }}
+          >
+            Sign out all devices
+          </Button>
+        }
+      >
+        <p>
+          {signingOut?.full_name} will need to sign in again on every device.{' '}
+          {signingOut?.id === me.id && 'This includes your current session.'}
+        </p>
+        {revokeSessions.isError && <p role="alert">{apiErrorMessage(revokeSessions.error)}</p>}
+      </Modal>
       <Modal open={details !== null} title="User details" onClose={() => setDetails(null)}>
         {details && (
           <div className="flex flex-col gap-4 text-sm">

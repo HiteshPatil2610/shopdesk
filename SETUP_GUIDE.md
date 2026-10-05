@@ -542,3 +542,7 @@ Notes:
 - [ ] Vercel team upgraded to **Pro** before real sales
 - [ ] Clerk production instance created and DNS verified
 - [ ] Production values ready for every row in §11
+
+## Production hardening, deployment and operations
+
+Follow [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md) for the current ordered process, runtime/owner/backup roles, production environment matrix, session settings, restore drill and rotation procedure. Production settings now require exact HTTPS origins, a shopdesk_app runtime connection and rediss:// rate-limit storage. Run scripts/security/configure-web-headers.mjs with your actual domain before deployment. Legacy environment tables above should be read together with this guide; no deployment has been performed automatically.

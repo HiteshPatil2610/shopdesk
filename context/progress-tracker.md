@@ -2,8 +2,8 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Phase 4. Specs 01–08 built → next: **spec 09 (security hardening)**, then 10 (deployment)
-**Last updated:** 2026-10-04
+**Current phase:** Phase 4. Specs 01–08 built; spec 09 code built, production security sign-off pending. Owner will manually deploy using MANUAL_DEPLOYMENT.md
+**Last updated:** 2026-10-05
 
 ## Status overview
 
@@ -18,8 +18,8 @@
 | 3 | [06 POS billing](specs/06-pos-billing.md) | ✅ Built | Server quotes, persisted draft cart, lookup, discount and keyboard UI; timed live five-item check pending |
 | 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ✅ Built | Confirm/reject, receipts, stock adjust, race-tested |
 | 4 | [08 Dashboard & reports](specs/08-dashboard-and-reports.md) | ✅ Built | KPIs + charts + low stock + cashier summary + CSV |
-| 4 | [09 Security hardening](specs/09-security-hardening.md) | ⬜ Not started | |
-| 4 | [10 Deployment](specs/10-deployment.md) | ⬜ Not started | |
+| 4 | [09 Security hardening](specs/09-security-hardening.md) | 🟨 Code built | Production Clerk/DB/CSP/backup/restore checks and sign-off pending owner |
+| 4 | [10 Deployment](specs/10-deployment.md) | 🟨 Guide ready | Owner performs manual deployment; see MANUAL_DEPLOYMENT.md |
 
 Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
@@ -53,6 +53,10 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | Q7 | Must a rejected order have a reason? | Optional | Open |
 | Q8 | Which domain name? (needed for the Clerk production instance, spec 10) | Buy before spec 10. Use the Clerk dev instance until then | Open |
 | Q9 | When will the Vercel team move from Hobby (non-commercial) to **Pro**? | Build/test on Hobby. Upgrade before the first real sale | Open |
+
+## Deployment handoff
+
+Owner will perform deployment manually. Follow [MANUAL_DEPLOYMENT.md](../MANUAL_DEPLOYMENT.md). Do not mark security acceptance complete until production headers/auth, restricted role permissions, Redis limits, backup artifact and scratch restore verification are recorded.
 
 ## Decision log
 
@@ -102,6 +106,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Date | Who | What was done | Next |
 |---|---|---|---|
+| 2026-10-05 | Codex | Spec 09 code: API/web headers + exact production CSP/live-key build guard, shared Redis quotas, audited sign-out-all-devices, production HTTPS/TLS/role/key/Redis guards, pixel cap + malformed/polyglot upload tests, XSS confirmation test. Prepared restricted role SQL, migration/grants and private-repo nightly backup workflows, dependency audits + Dependabot + gitleaks. 260 backend tests passed in full rerun; 41 final unit checks passed; 67 frontend tests + 1 build-guard test; lint/format/types and both builds pass. Python/npm runtime audits have zero findings; gitleaks history clean after one exact public-fixture false-positive exclusion. Manual deployment guide written. Browser reached Clerk sign-in; signed-in Users UI tested with component mocks. No production changes or deployment | Owner: follow MANUAL_DEPLOYMENT.md, verify DB grants/Clerk/CSP/Redis, run backup and scratch restore drill, then sign off spec 09 |
 | 2026-10-04 | Codex | Built spec 05 audit viewer/API, URL-synced IST filters, paginated table, detail diffs, admin-only streamed CSV with formula protection and export event, product audit history tab, recursive secret redaction. Reused spec 02 immutable table; no migration. Browser verified existing rows/details/empty state and export event; download-path observation timed out. Full backend suite: 188 passed; frontend: 51 passed; lint/format/type checks and both production builds passed. Added write-audit and timezone regression tests. Ports/access unchanged | Spec 06 POS billing; order audit integration in spec 07 |
 | 2026-10-04 | Codex + owner | Added admin-only user details modal and separate username/email display, account IDs, current role/status/access and IST timestamps. Extended only the admin user list response; passwords remain excluded. 15 user API tests and 48 frontend tests pass; lint/type checks pass. Verified cashier details modal in signed-in browser. Started local admin API after finding port 5001 stopped | Owner can inspect user identifiers in Users → View details |
 | 2026-10-04 | Codex + owner | Signed in as demo admin and verified pricing examples: cost 500 → MP 1000; cost 700 → SP 1200, unsaved switch-off → 1210; product form cost 743 offers MP 1450/SP 1300 or MP 1500/SP 1350. Reset unsaved changes, did not save products or apply settings, and signed out. Manager/cashier browser checks await corrected demo credentials; automated role tests already pass | Verify manager/cashier screens once owner corrects credentials |
@@ -118,3 +123,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | 2026-10-04 | Claude | Reviewed the interrupted session's work (spec 05 audit viewer + CSV, spec 06 cart/quote/billing UI, pricing x10→x00 + ₹500 smoothing, sp_avoid_ten checkbox): sound overall. Fixed: half-edited product left in the session after a refused price edit (rollback in update/apply), quote now accepts lower-case codes, scan detection checks the Enter gap, hotkey hook subscribes once. Added spec 05 acceptance tests (precise update row + IP, no audit on refused edit, no passwords in audit). 204 backend + 56 frontend tests green. Clerk roles verified: admin/raccoon(manager)/deepa(cashier) | Owner: rotate the 3 passwords shared in chat; timed 5-item keyboard bill once products exist. Next: spec 07 |
 | 2026-10-05 | Claude | **Spec 07 built**: orders + items (price snapshots) + daily counters (migration 0005), confirm with row locks / idempotency / ledger / audit, reject without stock change, receipts (24h cashier rule), my-orders, admin orders list/detail with profit, stock adjust/movements/verify, JIT mirror race fix. POS confirm dialog (payment mode), 409 line marking, reject with reason, 80mm receipt print, New order (N), my orders today. Admin Orders, Order detail, Stock page, Adjust stock + Stock history on products. 232 backend + 63 frontend tests | Owner: try a full sale end-to-end. Next: spec 08 |
 | 2026-10-05 | Claude | **Spec 08 built**: report service (summary with vs-yesterday, sales by day zero-filled in IST, top products, low stock, cashier summary, audited admin-only sales CSV). Dashboard (4 KPI tiles, 14-day sales chart, top-5 chart, low stock + Restock) refreshing every 60 s, Reports page (presets/date range, sales chart, top products, cashiers, CSV). Lazy-loaded admin routes (largest chunk 827 → 470 KB). 240 backend + 66 frontend tests | Next: spec 09 |
+| 2026-10-05 | Claude + owner | Owner chose to merge the 4 deployables into **one server** (1 Flask app with `/api/admin` + `/api/pos` areas, 1 React app with `/admin` + `/pos`, 1 Vercel project). Wrote proposal `specs/11-single-server.md`; no code changed. Spec 09 work from the other session kept as is | Owner: review spec 11 and answer its §14 questions. Implement only after the go-ahead |

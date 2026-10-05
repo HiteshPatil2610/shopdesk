@@ -82,3 +82,41 @@ def test_missing_database_url_fails_fast(monkeypatch):
 
 def test_split_csv_strips_trailing_slashes():
     assert Settings.split_csv("http://a.com/, http://b.com") == ["http://a.com", "http://b.com"]
+
+
+def prod_values(pem):
+    return dict(
+        app_env="production",
+        database_url="postgresql://shopdesk_app:secret@host/db?sslmode=require",
+        clerk_secret_key="sk_live_demo",
+        clerk_jwt_key=pem,
+        cloudinary_url="cloudinary://key:secret@cloud",
+        ratelimit_storage_uri="rediss://default:secret@redis:6379",
+        admin_cors_origins="https://admin.example.com",
+        pos_cors_origins="https://pos.example.com",
+        admin_authorized_parties="https://admin.example.com",
+        pos_authorized_parties="https://pos.example.com",
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("ratelimit_storage_uri", "memory://", "rediss"),
+        ("admin_authorized_parties", "https://*.example.com", "exact HTTPS"),
+        ("pos_cors_origins", "http://localhost:5174", "exact HTTPS"),
+        ("database_url", "postgresql://neondb_owner:secret@host/db", "shopdesk_app"),
+        ("db_echo", True, "DB_ECHO"),
+        ("clerk_publishable_key", "pk_test_demo", "publishable"),
+        ("cloudinary_url", "cloudinary://<your_api_key>:<your_api_secret>@cloud", "placeholder"),
+    ],
+)
+def test_production_guards(rsa_public_pem, field, value, message):
+    values = prod_values(rsa_public_pem)
+    values[field] = value
+    with pytest.raises(ValidationError, match=message):
+        make(**values)
+
+
+def test_valid_production_config(rsa_public_pem):
+    assert make(**prod_values(rsa_public_pem)).app_env == "production"

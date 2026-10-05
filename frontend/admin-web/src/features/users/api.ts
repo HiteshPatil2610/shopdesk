@@ -10,6 +10,14 @@ export type AdminUser = UserPublic & {
 
 const KEY = ['users'];
 
+export function useRevokeSessions() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<{ sessions_revoked: number }>(`/api/users/${id}/revoke-sessions`)).data,
+  });
+}
+
 export function useUsers() {
   const api = useApi();
   return useQuery({

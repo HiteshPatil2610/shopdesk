@@ -10,6 +10,7 @@ from flask_cors import CORS
 from core.config import Settings, get_settings
 from core.db import db, engine_options
 from core.errors import register_error_handlers
+from core.hardening import install_headers
 from core.health import make_health_blueprint
 from core.observability import configure_logging, register_request_id
 
@@ -44,12 +45,21 @@ def build_base_app(server: ServerName, settings: Settings | None = None) -> Flas
         app,
         resources={r"/api/*": {"origins": origins}},
         allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
-        expose_headers=["X-Request-ID"],
+        expose_headers=[
+            "X-Request-ID",
+            "Retry-After",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+        ],
         supports_credentials=False,
         max_age=600,
     )
 
     register_request_id(app)
+    install_headers(app)
+    if settings.app_env == "production":
+        app.config.update(DEBUG=False, PROPAGATE_EXCEPTIONS=False)
     register_error_handlers(app)
     app.register_blueprint(make_health_blueprint(server))
     return app

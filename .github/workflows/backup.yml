@@ -1,0 +1,30 @@
+name: Nightly backup
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Refuse to store customer backups in a public repository
+        run: test "${{ github.event.repository.private }}" = "true"
+      - name: Dump production using the read-only backup role
+        env:
+          NEON_BACKUP_URL: ${{ secrets.NEON_BACKUP_URL }}
+        run: |
+          test -n "$NEON_BACKUP_URL"
+          docker run --rm -e NEON_BACKUP_URL postgres:18 sh -c 'pg_dump --dbname="$NEON_BACKUP_URL" --format=custom --no-owner --no-acl' > shopdesk.dump
+          test -s shopdesk.dump
+      - uses: actions/upload-artifact@v7
+        with:
+          name: shopdesk-backup-${{ github.run_id }}
+          path: shopdesk.dump
+          retention-days: 14
+          if-no-files-found: error

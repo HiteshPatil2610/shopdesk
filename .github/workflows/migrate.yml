@@ -1,0 +1,37 @@
+name: Production migrations
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: production-migrations
+  cancel-in-progress: false
+jobs:
+  migrate:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Migrate with owner credentials, then reapply runtime grants
+        working-directory: backend
+        env:
+          APP_ENV: development
+          DATABASE_URL: ${{ secrets.NEON_MIGRATE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.NEON_MIGRATE_URL }}
+        run: |
+          test -n "$DATABASE_URL"
+          python -m flask --app admin_api db upgrade
+          python -m core.apply_grants ../scripts/security/database-roles.sql

@@ -61,6 +61,13 @@ def ban(user_id: int) -> ResponseReturnValue:
     return jsonify({"user": user.to_public()})
 
 
+@bp.post("/<int:user_id>/revoke-sessions")
+@require_role("admin")
+def revoke_sessions(user_id: int) -> ResponseReturnValue:
+    count = user_service.revoke_sessions(user_id, current_actor())
+    return jsonify({"sessions_revoked": count})
+
+
 @bp.post("/<int:user_id>/unban")
 @require_role("admin")
 def unban(user_id: int) -> ResponseReturnValue:

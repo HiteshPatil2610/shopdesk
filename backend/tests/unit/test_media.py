@@ -27,6 +27,29 @@ def test_text_file_named_png_is_rejected():
     assert exc.value.status == 415
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"",
+        b"\x89PNG\r\n\x1a\n",
+        b"\xff\xd8\xff",
+        b'<svg onload="alert(1)"></svg>',
+        bytes(range(256)),
+    ],
+)
+def test_malformed_uploads_are_rejected(raw):
+    with pytest.raises(AppError) as exc:
+        validate_and_encode(raw, max_mb=4)
+    assert exc.value.status == 415
+
+
+def test_embedded_script_tail_is_removed():
+    out = validate_and_encode(png_bytes() + b"<script>alert(1)</script>", max_mb=4)
+    assert b"<script>" not in out
+    with Image.open(io.BytesIO(out)) as image:
+        assert image.format == "WEBP"
+
+
 def test_gif_is_rejected():
     buf = io.BytesIO()
     Image.new("RGB", (10, 10)).save(buf, "GIF")

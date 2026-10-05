@@ -231,6 +231,10 @@ class FakeGateway:
     def unban(self, user_id: str) -> None:
         self.calls.append(("unban", (user_id,)))
 
+    def revoke_sessions(self, user_id: str) -> int:
+        self.calls.append(("revoke_sessions", (user_id,)))
+        return 2
+
 
 @pytest.fixture()
 def fake_clerk() -> Iterator[FakeGateway]:

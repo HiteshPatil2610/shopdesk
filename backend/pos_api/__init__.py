@@ -11,6 +11,7 @@ from core import models  # noqa: F401  - registers all tables with the metadata
 from core.app_factory import build_base_app
 from core.auth_routes import make_auth_blueprint
 from core.config import Settings
+from core.hardening import install_rate_limits
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -21,4 +22,5 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(products.bp)
     app.register_blueprint(cart.bp)
     app.register_blueprint(orders.bp)
+    install_rate_limits(app)
     return app

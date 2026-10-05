@@ -2,6 +2,12 @@
 
 **Status:** ⬜ Not started · **Depends on:** 01–09 · **Server(s):** both
 
+**Owner handoff (2026-10-05):** Deployment will be performed manually by the owner.
+Follow [MANUAL_DEPLOYMENT.md](../../MANUAL_DEPLOYMENT.md) for the current step-by-step
+process, exact production environment values, headers generator, restricted role script,
+backup/migration workflows, smoke test, rotation and restore drill. Supporting files are
+prepared; production deployment and acceptance checks are not yet executed.
+
 ## 1. Goal
 ShopDesk runs on the internet, deployed automatically from GitHub to **Vercel**:
 

@@ -111,3 +111,8 @@ $RECYCLE.BIN/
 
 # ---------- Claude Code (personal local settings) ----------
 .claude/settings.local.json
+
+# Local vulnerability audit caches/results
+.audit-cache/
+dependency-audit-*.json
+.tools/
