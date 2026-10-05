@@ -52,7 +52,6 @@ One Vercel project serves static assets and a Python function. No CORS permissio
 ```text
 ShopDesk/
   api/index.py                  # legacy compatibility entry (not deployed)
-  requirements.txt              # legacy compatibility requirements
   .python-version               # Python 3.12
   vercel.json                   # root build, rewrites, HTML security headers
   backend/
