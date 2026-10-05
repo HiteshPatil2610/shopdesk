@@ -25,16 +25,44 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const first = panel.current?.querySelector<HTMLElement>(
       'input, select, textarea, button:not([data-close])',
     );
-    first?.focus();
+    (first ?? panel.current)?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Tab') {
+        const controls = Array.from(
+          panel.current?.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]',
+          ) ?? [],
+        ).filter((element) => element.getClientRects().length > 0);
+        const firstControl = controls[0];
+        const lastControl = controls.at(-1);
+        if (!firstControl) {
+          e.preventDefault();
+          panel.current?.focus();
+        } else if (
+          e.shiftKey &&
+          (document.activeElement === firstControl || document.activeElement === panel.current)
+        ) {
+          e.preventDefault();
+          lastControl?.focus();
+        } else if (
+          !e.shiftKey &&
+          (document.activeElement === lastControl || document.activeElement === panel.current)
+        ) {
+          e.preventDefault();
+          firstControl.focus();
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
   }, [open]);
@@ -47,6 +75,7 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className={`flex max-h-[calc(100dvh-1rem)] min-w-0 w-full flex-col ${widths[size]} rounded-xl border border-border bg-surface shadow-lg sm:max-h-[calc(100dvh-2rem)]`}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-4">
@@ -63,7 +92,9 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
             ✕
           </button>
         </div>
-        <div className="min-h-0 overflow-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
+        <div className="modal-body min-h-0 overflow-auto overscroll-contain px-4 py-4 sm:px-5">
+          {children}
+        </div>
         {footer && (
           <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-5 sm:py-4">
             {footer}
