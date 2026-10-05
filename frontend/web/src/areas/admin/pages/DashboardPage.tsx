@@ -94,8 +94,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
           {days.data ? (
             <BarChart
               title="Sales, last 14 days"
@@ -112,7 +112,7 @@ export function DashboardPage() {
             <Spinner label="Loading chart" />
           )}
         </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
           {top.data ? (
             top.data.length ? (
               <BarChart
@@ -138,7 +138,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface">
+      <div className="min-w-0 rounded-xl border border-border bg-surface">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="font-semibold">Low stock</h2>
           <Link to="/admin/stock" className="text-sm text-primary">
@@ -156,17 +156,19 @@ export function DashboardPage() {
             ✓ Everything is above its alert level.
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="mobile-records w-full text-left text-sm">
             <tbody>
               {low.data.slice(0, 8).map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2 font-mono text-xs">{p.code}</td>
-                  <td className="px-4 py-2">
+                  <td data-label="Code" className="px-4 py-2 font-mono text-xs">
+                    {p.code}
+                  </td>
+                  <td data-label="Product" className="px-4 py-2">
                     <Link to={`/admin/products/${p.id}`} className="hover:text-primary">
                       {p.name}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td data-label="Stock" className="px-4 py-2 text-right tabular-nums">
                     {p.quantity === 0 ? (
                       <Badge tone="danger">0 · out</Badge>
                     ) : (
@@ -175,7 +177,7 @@ export function DashboardPage() {
                       </Badge>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td data-label="Action" className="px-4 py-2 text-right">
                     <Button size="sm" variant="secondary" onClick={() => setRestocking(p)}>
                       Restock
                     </Button>

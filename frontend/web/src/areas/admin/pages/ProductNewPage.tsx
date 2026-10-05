@@ -42,11 +42,11 @@ export function ProductNewPage() {
 
       <FormProvider {...form}>
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-          <div className="grid gap-6 rounded-xl border border-border bg-surface p-5 md:grid-cols-[220px_1fr]">
+          <div className="grid gap-6 rounded-xl border border-border bg-surface p-3 sm:p-5 lg:grid-cols-[220px_minmax(0,1fr)]">
             <ImagePicker onChange={setImage} disabled={create.isPending} />
             <ProductFields mode="create" />
           </div>
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-3 sm:p-5">
             <PriceSection />
           </div>
 
@@ -55,7 +55,7 @@ export function ProductNewPage() {
               {apiErrorMessage(create.error)}
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={() => navigate('/admin/products')}>
               Cancel
             </Button>

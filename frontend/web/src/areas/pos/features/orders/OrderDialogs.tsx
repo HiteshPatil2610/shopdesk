@@ -233,7 +233,7 @@ function MyOrdersTable({ orders }: { orders: MyOrder[] }) {
       <p className="text-sm text-text-muted">
         {confirmed} confirmed · {orders.length - confirmed} rejected
       </p>
-      <table className="w-full text-left text-sm">
+      <table className="mobile-records w-full text-left text-sm">
         <thead className="text-xs text-text-muted uppercase">
           <tr>
             <th className="py-1">Time</th>
@@ -245,18 +245,22 @@ function MyOrdersTable({ orders }: { orders: MyOrder[] }) {
         <tbody>
           {orders.map((o) => (
             <tr key={o.order_number} className="border-t border-border">
-              <td className="py-1 tabular-nums">
+              <td data-label="Time" className="py-1 tabular-nums">
                 {new Date(o.created_at).toLocaleTimeString('en-IN', {
                   timeZone: 'Asia/Kolkata',
                   timeStyle: 'short',
                 })}
               </td>
-              <td className="py-1 font-mono text-xs">
+              <td data-label="Order" className="py-1 font-mono text-xs">
                 {o.order_number}
                 {o.status === 'rejected' && <span className="ml-1 text-danger">(rejected)</span>}
               </td>
-              <td className="py-1">{o.customer_name}</td>
-              <td className="py-1 text-right tabular-nums">{formatINR(o.total)}</td>
+              <td data-label="Customer" className="py-1">
+                {o.customer_name}
+              </td>
+              <td data-label="Total" className="py-1 text-right tabular-nums">
+                {formatINR(o.total)}
+              </td>
             </tr>
           ))}
         </tbody>

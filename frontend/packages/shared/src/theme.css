@@ -43,6 +43,14 @@
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+  }
   html {
     font-family: var(--font-sans);
     background-color: var(--color-bg);
@@ -52,5 +60,98 @@
   td,
   .money {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Keep long records and native date controls inside their layout column. */
+@layer base {
+  input,
+  select,
+  textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+  button,
+  a,
+  summary {
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+}
+
+@media screen and (max-width: 639px) {
+  /* Avoid iOS zoom when focusing fields and make compact desktop controls tappable. */
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  kbd {
+    display: none;
+  }
+  .mobile-records,
+  .mobile-records tbody {
+    display: block;
+    width: 100%;
+  }
+  .mobile-records thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .mobile-records tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .mobile-records tbody > tr:last-child {
+    border-bottom: 0;
+  }
+  .mobile-records td[data-label] {
+    display: block;
+    width: 100%;
+    padding: 6px 0;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .mobile-records td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .mobile-records td[data-label='Photo']::before {
+    display: none;
+  }
+  .mobile-records td[data-label='Actions'] > div {
+    justify-content: flex-start;
+  }
+  .mobile-records td[colspan] {
+    display: block;
+    padding: 16px 0;
+  }
+}
+
+@media screen and (max-width: 639px) {
+  .mobile-records td:first-child,
+  .mobile-records td[data-label='User'],
+  .mobile-records td[data-label='Product'],
+  .mobile-records td[data-label='Summary'],
+  .mobile-records td[data-label='Actions'],
+  .mobile-records td[colspan] {
+    grid-column: 1 / -1;
   }
 }

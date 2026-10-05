@@ -41,15 +41,15 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-4">
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`w-full ${widths[size]} rounded-xl border border-border bg-surface shadow-lg`}
+        className={`flex max-h-[calc(100dvh-1rem)] min-w-0 w-full flex-col ${widths[size]} rounded-xl border border-border bg-surface shadow-lg sm:max-h-[calc(100dvh-2rem)]`}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-4">
           <h2 id={titleId} className="text-lg font-semibold">
             {title}
           </h2>
@@ -58,14 +58,16 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }: P
             data-close
             aria-label="Close"
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-text-muted hover:bg-bg"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-bg"
           >
             ✕
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="min-h-0 overflow-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-5 sm:py-4">
+            {footer}
+          </div>
         )}
       </div>
     </div>

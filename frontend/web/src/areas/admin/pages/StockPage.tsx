@@ -33,7 +33,7 @@ export function StockPage() {
           placeholder="Search name or code…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+          className="h-10 min-w-0 w-full flex-1 sm:min-w-56 rounded-lg border border-border bg-surface px-3 text-sm"
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
@@ -50,7 +50,7 @@ export function StockPage() {
         ) : products.data.items.length === 0 ? (
           <p className="p-12 text-center text-text-muted">No products.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="mobile-records w-full text-left text-sm">
             <thead className="border-b border-border text-xs text-text-muted uppercase">
               <tr>
                 <th className="px-3 py-3">Code</th>
@@ -63,13 +63,15 @@ export function StockPage() {
             <tbody>
               {products.data.items.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 font-mono text-xs">{p.code}</td>
-                  <td className="px-3 py-2">
+                  <td data-label="Code" className="px-3 py-2 font-mono text-xs">
+                    {p.code}
+                  </td>
+                  <td data-label="Product" className="px-3 py-2">
                     <Link to={`/admin/products/${p.id}`} className="hover:text-primary">
                       {p.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="In stock" className="px-3 py-2 text-right tabular-nums">
                     {p.quantity === 0 ? (
                       <Badge tone="danger">0 · out</Badge>
                     ) : p.low_stock ? (
@@ -79,10 +81,13 @@ export function StockPage() {
                     )}{' '}
                     <span className="text-text-muted">{p.unit}</span>
                   </td>
-                  <td className="px-3 py-2 text-right text-text-muted tabular-nums">
+                  <td
+                    data-label="Alert at"
+                    className="px-3 py-2 text-right text-text-muted tabular-nums"
+                  >
                     {p.reorder_level}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td data-label="Action" className="px-3 py-2 text-right">
                     <Button size="sm" variant="secondary" onClick={() => setAdjusting(p)}>
                       Adjust
                     </Button>

@@ -123,7 +123,7 @@ export function AuditPage({ productId }: { productId?: number }) {
       ) : (
         <>
           <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full text-left text-sm">
+            <table className="mobile-records w-full text-left text-sm">
               <thead>
                 <tr>
                   {['When (IST)', 'User', 'Source', 'Action', 'Summary', 'Details'].map((h) => (
@@ -136,15 +136,19 @@ export function AuditPage({ productId }: { productId?: number }) {
               <tbody>
                 {logs.data.items.map((row) => (
                   <tr key={row.id} className="border-t border-border">
-                    <td className="whitespace-nowrap px-4 py-3">{formatDate(row.occurred_at)}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="When (IST)" className="whitespace-nowrap px-4 py-3">
+                      {formatDate(row.occurred_at)}
+                    </td>
+                    <td data-label="User" className="px-4 py-3">
                       {row.actor_username}
                       <span className="block text-xs text-text-muted">
                         ID {row.actor_user_id ?? 'system'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">{row.source}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="Source" className="px-4 py-3">
+                      {row.source}
+                    </td>
+                    <td data-label="Action" className="px-4 py-3">
                       <Badge
                         tone={
                           row.action.includes('deactivate')
@@ -157,8 +161,10 @@ export function AuditPage({ productId }: { productId?: number }) {
                         {row.action}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">{row.summary}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="Summary" className="px-4 py-3">
+                      {row.summary}
+                    </td>
+                    <td data-label="Details" className="px-4 py-3">
                       <Button size="sm" variant="secondary" onClick={() => setSelected(row)}>
                         View details
                       </Button>
@@ -175,7 +181,7 @@ export function AuditPage({ productId }: { productId?: number }) {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <span>
               {logs.data.total} entries · Page {logs.data.page}
             </span>

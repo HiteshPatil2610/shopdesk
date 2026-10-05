@@ -198,14 +198,14 @@ export function BillingPage() {
     }
   });
   return (
-    <div className="grid min-h-[calc(100vh-57px)] grid-cols-1 md:grid-cols-[320px_1fr]">
+    <div className="grid min-h-[calc(100dvh-57px)] grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
       <ProductPanel
         onPick={(product: PosProduct) => {
           void add(product.code, 1);
         }}
       />
-      <section className="flex min-w-0 flex-col gap-5 p-5">
-        <div className="flex items-center justify-between">
+      <section className="flex min-w-0 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold">New bill</h1>
           <Button variant="secondary" size="sm" onClick={() => setDialog('mine')}>
             My orders today
@@ -260,7 +260,7 @@ export function BillingPage() {
             void add(code, Number(qty));
           }}
         >
-          <label className="grid flex-1 gap-1 text-sm font-medium">
+          <label className="grid min-w-0 basis-full gap-1 text-sm font-medium sm:flex-1 sm:basis-auto">
             Product code / barcode <kbd>F2</kbd>
             <input
               ref={codeInput}
@@ -312,7 +312,7 @@ export function BillingPage() {
               Enter a code or choose a product to start this bill.
             </p>
           ) : (
-            <table className="w-full text-left text-sm">
+            <table className="mobile-records w-full text-left text-sm">
               <thead className="border-b border-border text-text-muted">
                 <tr>
                   <th className="p-3">Product</th>
@@ -338,7 +338,7 @@ export function BillingPage() {
                       key={item.code}
                       className={`border-b border-border ${problem ? 'bg-danger/10' : selected === item.code ? 'bg-primary/5' : ''}`}
                     >
-                      <td className="p-3">
+                      <td data-label="Product" className="p-3">
                         <button
                           type="button"
                           className="text-left"
@@ -363,7 +363,7 @@ export function BillingPage() {
                           </span>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Quantity">
                         <input
                           aria-label={`Quantity for ${item.code}`}
                           className={`${field} w-20`}
@@ -388,11 +388,13 @@ export function BillingPage() {
                           }}
                         />
                       </td>
-                      <td className="tabular-nums">{line ? formatINR(line.unit_price) : '…'}</td>
-                      <td className="font-semibold tabular-nums">
+                      <td data-label="Unit price" className="tabular-nums">
+                        {line ? formatINR(line.unit_price) : '…'}
+                      </td>
+                      <td data-label="Amount" className="font-semibold tabular-nums">
                         {line ? formatINR(line.line_total) : '…'}
                       </td>
-                      <td>
+                      <td data-label="Remove">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -409,7 +411,7 @@ export function BillingPage() {
             </table>
           )}
         </div>
-        <label className="flex items-center gap-3 font-semibold">
+        <label className="flex flex-wrap items-center gap-3 font-semibold">
           <input
             type="checkbox"
             checked={cart.discount}
@@ -449,7 +451,7 @@ export function BillingPage() {
             <dd className="text-right text-2xl font-bold">{formatINR(latest.total)}</dd>
           </dl>
         )}
-        <div className="flex justify-between border-t border-border pt-4">
+        <div className="grid grid-cols-2 gap-2 border-t border-border pt-4 sm:flex sm:justify-between">
           <Button
             variant="danger"
             size="lg"
@@ -473,7 +475,7 @@ export function BillingPage() {
             ✓ Confirm <kbd className="ml-1 text-xs opacity-80">F9</kbd>
           </Button>
         </div>
-        <p className="text-xs text-text-muted">
+        <p className="hidden text-xs text-text-muted lg:block">
           F3 Search products · Arrow keys select a line · Delete removes the selected line
         </p>
       </section>

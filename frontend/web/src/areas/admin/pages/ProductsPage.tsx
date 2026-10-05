@@ -39,7 +39,7 @@ export function ProductsPage() {
           placeholder="Search name, code or barcode…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+          className="h-10 min-w-0 w-full flex-1 sm:min-w-56 rounded-lg border border-border bg-surface px-3 text-sm"
         />
         <select
           aria-label="Category"
@@ -99,7 +99,7 @@ export function ProductsPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="mobile-records w-full text-left text-sm">
             <thead className="border-b border-border text-xs text-text-muted uppercase">
               <tr>
                 <th className="w-14 px-3 py-3" aria-label="Photo" />
@@ -122,15 +122,17 @@ export function ProductsPage() {
                     p.is_active ? '' : 'opacity-60'
                   }`}
                 >
-                  <td className="px-3 py-2">
+                  <td data-label="Photo" className="px-3 py-2">
                     {p.thumb_url ? (
                       <img src={p.thumb_url} alt="" className="h-10 w-10 rounded-md object-cover" />
                     ) : (
                       <div className="h-10 w-10 rounded-md bg-bg" />
                     )}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs">{p.code}</td>
-                  <td className="px-3 py-2">
+                  <td data-label="Code" className="px-3 py-2 font-mono text-xs">
+                    {p.code}
+                  </td>
+                  <td data-label="Product" className="px-3 py-2">
                     <Link
                       to={`/admin/products/${p.id}`}
                       className="font-medium hover:text-primary"
@@ -144,8 +146,10 @@ export function ProductsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-text-muted">{p.category?.name ?? '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="Category" className="px-3 py-2 text-text-muted">
+                    {p.category?.name ?? '—'}
+                  </td>
+                  <td data-label="Stock" className="px-3 py-2 text-right tabular-nums">
                     {p.quantity === 0 ? (
                       <Badge tone="danger">0 · out</Badge>
                     ) : p.low_stock ? (
@@ -154,16 +158,21 @@ export function ProductsPage() {
                       p.quantity
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatINR(p.cost_price)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="Cost" className="px-3 py-2 text-right tabular-nums">
+                    {formatINR(p.cost_price)}
+                  </td>
+                  <td data-label="MP" className="px-3 py-2 text-right tabular-nums">
                     {formatINR(p.market_price)}
                     {p.mp_is_manual && <span title="Manual price"> ✎</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="SP" className="px-3 py-2 text-right tabular-nums">
                     {formatINR(p.selling_price)}
                     {p.sp_is_manual && <span title="Manual price"> ✎</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-text-muted">
+                  <td
+                    data-label="Margin"
+                    className="px-3 py-2 text-right tabular-nums text-text-muted"
+                  >
                     {p.sp_margin_pct ? `${p.sp_margin_pct}%` : '—'}
                   </td>
                 </tr>
@@ -174,7 +183,7 @@ export function ProductsPage() {
       </div>
 
       {pages > 1 && (
-        <div className="flex items-center justify-end gap-2 text-sm">
+        <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
           <Button
             size="sm"
             variant="secondary"

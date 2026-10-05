@@ -34,7 +34,7 @@ export function OrdersPage() {
           placeholder="Customer name or order number…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 min-w-56 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
+          className="h-10 min-w-0 w-full flex-1 sm:min-w-56 rounded-lg border border-border bg-surface px-3 text-sm"
         />
         <select
           aria-label="Status"
@@ -60,7 +60,7 @@ export function OrdersPage() {
         ) : orders.data.items.length === 0 ? (
           <p className="p-12 text-center text-text-muted">No orders yet.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="mobile-records w-full text-left text-sm">
             <thead className="border-b border-border text-xs text-text-muted uppercase">
               <tr>
                 <th className="px-3 py-3">Order</th>
@@ -80,25 +80,33 @@ export function OrdersPage() {
                   onClick={() => navigate(`/admin/orders/${o.id}`)}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-bg"
                 >
-                  <td className="px-3 py-2 font-mono text-xs">{o.order_number}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+                  <td data-label="Order" className="px-3 py-2 font-mono text-xs">
+                    {o.order_number}
+                  </td>
+                  <td data-label="Date" className="px-3 py-2 whitespace-nowrap">
                     {new Date(o.created_at).toLocaleString('en-IN', {
                       timeZone: 'Asia/Kolkata',
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     })}
                   </td>
-                  <td className="px-3 py-2">{o.customer_name}</td>
-                  <td className="px-3 py-2 text-text-muted">{o.cashier_name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{o.item_count}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="Customer" className="px-3 py-2">
+                    {o.customer_name}
+                  </td>
+                  <td data-label="Cashier" className="px-3 py-2 text-text-muted">
+                    {o.cashier_name}
+                  </td>
+                  <td data-label="Items" className="px-3 py-2 text-right tabular-nums">
+                    {o.item_count}
+                  </td>
+                  <td data-label="Total" className="px-3 py-2 text-right tabular-nums">
                     {formatINR(o.total)}
                     {o.discount_applied && <span title="Discount applied"> %</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td data-label="Profit" className="px-3 py-2 text-right tabular-nums">
                     {o.profit ? formatINR(o.profit) : '—'}
                   </td>
-                  <td className="px-3 py-2">
+                  <td data-label="Status" className="px-3 py-2">
                     {o.status === 'confirmed' ? (
                       <Badge tone="success">Confirmed</Badge>
                     ) : (
@@ -113,7 +121,7 @@ export function OrdersPage() {
       </div>
 
       {pages > 1 && (
-        <div className="flex items-center justify-end gap-2 text-sm">
+        <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
           <Button
             size="sm"
             variant="secondary"

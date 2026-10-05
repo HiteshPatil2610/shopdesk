@@ -75,7 +75,7 @@ export function UsersPage() {
         ) : users.isError ? (
           <div className="p-8 text-center text-danger">{apiErrorMessage(users.error)}</div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="mobile-records w-full text-left text-sm">
             <thead className="border-b border-border text-xs text-text-muted uppercase">
               <tr>
                 <th className="px-4 py-3">User</th>
@@ -90,7 +90,7 @@ export function UsersPage() {
                 const isMe = u.id === me.id;
                 return (
                   <tr key={u.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3">
+                    <td data-label="User" className="px-4 py-3">
                       <p className="font-medium">
                         {u.full_name} {isMe && <span className="text-text-muted">(you)</span>}
                       </p>
@@ -99,7 +99,7 @@ export function UsersPage() {
                       </p>
                       <p className="text-xs text-text-muted">Email: {u.email ?? 'Not provided'}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Role" className="px-4 py-3">
                       {isMe ? (
                         <RoleBadge role={u.role} />
                       ) : (
@@ -118,16 +118,18 @@ export function UsersPage() {
                         </select>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status" className="px-4 py-3">
                       {u.is_active ? (
                         <Badge tone="success">Active</Badge>
                       ) : (
                         <Badge tone="danger">Deactivated</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-text-muted">{lastSeen(u.last_seen_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
+                    <td data-label="Last seen" className="px-4 py-3 text-text-muted">
+                      {lastSeen(u.last_seen_at)}
+                    </td>
+                    <td data-label="Actions" className="px-4 py-3">
+                      <div className="flex flex-wrap justify-end gap-2">
                         <Button size="sm" variant="secondary" onClick={() => setDetails(u)}>
                           View details
                         </Button>
@@ -194,7 +196,7 @@ export function UsersPage() {
       <Modal open={details !== null} title="User details" onClose={() => setDetails(null)}>
         {details && (
           <div className="flex flex-col gap-4 text-sm">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3">
+            <dl className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3">
               {[
                 ['Full name', details.full_name],
                 ['Username', details.username ?? 'Not provided'],

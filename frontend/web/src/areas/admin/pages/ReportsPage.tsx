@@ -47,7 +47,7 @@ export function ReportsPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 min-w-0 rounded-xl border border-border bg-surface p-3 text-sm">
         {PRESETS.map((p) => (
           <Button
             key={p.days}
@@ -83,7 +83,7 @@ export function ReportsPage() {
         <p className="text-sm text-danger">{apiErrorMessage(exportSales.error)}</p>
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
         {days.data ? (
           <BarChart
             title="Sales by day"
@@ -105,8 +105,8 @@ export function ReportsPage() {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-border bg-surface">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="font-semibold">Top products</h2>
             <select
@@ -119,73 +119,77 @@ export function ReportsPage() {
               <option value="qty">By quantity</option>
             </select>
           </div>
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-text-muted uppercase">
-              <tr>
-                <th className="px-4 py-2">Product</th>
-                <th className="px-4 py-2 text-right">Qty</th>
-                <th className="px-4 py-2 text-right">Sales</th>
-                <th className="px-4 py-2 text-right">Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(top.data ?? []).map((p) => (
-                <tr key={p.product_id} className="border-t border-border tabular-nums">
-                  <td className="px-4 py-2">
-                    {p.name} <span className="font-mono text-xs text-text-muted">{p.code}</span>
-                  </td>
-                  <td className="px-4 py-2 text-right">{p.qty}</td>
-                  <td className="px-4 py-2 text-right">{formatINR(p.revenue)}</td>
-                  <td className="px-4 py-2 text-right">{formatINR(p.profit)}</td>
-                </tr>
-              ))}
-              {top.data?.length === 0 && (
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-text-muted uppercase">
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
-                    No sales in this period.
-                  </td>
+                  <th className="px-4 py-2">Product</th>
+                  <th className="px-4 py-2 text-right">Qty</th>
+                  <th className="px-4 py-2 text-right">Sales</th>
+                  <th className="px-4 py-2 text-right">Profit</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(top.data ?? []).map((p) => (
+                  <tr key={p.product_id} className="border-t border-border tabular-nums">
+                    <td className="px-4 py-2">
+                      {p.name} <span className="font-mono text-xs text-text-muted">{p.code}</span>
+                    </td>
+                    <td className="px-4 py-2 text-right">{p.qty}</td>
+                    <td className="px-4 py-2 text-right">{formatINR(p.revenue)}</td>
+                    <td className="px-4 py-2 text-right">{formatINR(p.profit)}</td>
+                  </tr>
+                ))}
+                {top.data?.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
+                      No sales in this period.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface">
+        <div className="min-w-0 rounded-xl border border-border bg-surface">
           <h2 className="border-b border-border px-4 py-3 font-semibold">Cashiers</h2>
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-text-muted uppercase">
-              <tr>
-                <th className="px-4 py-2">Cashier</th>
-                <th className="px-4 py-2 text-right">Orders</th>
-                <th className="px-4 py-2 text-right">Sales</th>
-                <th className="px-4 py-2 text-right">Rejected</th>
-                <th className="px-4 py-2 text-right">Discounts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(cashiers.data ?? []).map((c) => (
-                <tr key={c.cashier_id} className="border-t border-border tabular-nums">
-                  <td className="px-4 py-2">{c.cashier}</td>
-                  <td className="px-4 py-2 text-right">{c.orders}</td>
-                  <td className="px-4 py-2 text-right">{formatINR(c.sales_total)}</td>
-                  <td className="px-4 py-2 text-right">{c.rejected}</td>
-                  <td className="px-4 py-2 text-right">
-                    {formatINR(c.discounts_given)}
-                    <span className="block text-xs text-text-muted">
-                      on {c.discount_orders} order{c.discount_orders === 1 ? '' : 's'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {cashiers.data?.length === 0 && (
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-text-muted uppercase">
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
-                    No orders in this period.
-                  </td>
+                  <th className="px-4 py-2">Cashier</th>
+                  <th className="px-4 py-2 text-right">Orders</th>
+                  <th className="px-4 py-2 text-right">Sales</th>
+                  <th className="px-4 py-2 text-right">Rejected</th>
+                  <th className="px-4 py-2 text-right">Discounts</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(cashiers.data ?? []).map((c) => (
+                  <tr key={c.cashier_id} className="border-t border-border tabular-nums">
+                    <td className="px-4 py-2">{c.cashier}</td>
+                    <td className="px-4 py-2 text-right">{c.orders}</td>
+                    <td className="px-4 py-2 text-right">{formatINR(c.sales_total)}</td>
+                    <td className="px-4 py-2 text-right">{c.rejected}</td>
+                    <td className="px-4 py-2 text-right">
+                      {formatINR(c.discounts_given)}
+                      <span className="block text-xs text-text-muted">
+                        on {c.discount_orders} order{c.discount_orders === 1 ? '' : 's'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {cashiers.data?.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                      No orders in this period.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>

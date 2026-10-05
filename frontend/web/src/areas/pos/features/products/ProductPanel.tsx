@@ -23,7 +23,7 @@ export function ProductPanel({ onPick }: Props) {
   const products = usePosProducts(useDebounced(search.trim()));
 
   return (
-    <aside className="flex h-full flex-col border-r border-border bg-surface">
+    <aside className="flex min-w-0 flex-col border-b border-border bg-surface lg:border-r lg:border-b-0">
       <div className="flex items-center gap-2 border-b border-border p-3">
         <h2 className="text-sm font-semibold tracking-wide text-text-muted uppercase">Products</h2>
         <input
@@ -32,11 +32,11 @@ export function ProductPanel({ onPick }: Props) {
           placeholder="Search name or code…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 flex-1 rounded-lg border border-border bg-surface px-3"
+          className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3"
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="max-h-48 flex-1 overflow-y-auto overscroll-contain lg:max-h-[calc(100dvh-140px)]">
         {products.isPending ? (
           <div className="flex justify-center p-8">
             <Spinner label="Loading products" />

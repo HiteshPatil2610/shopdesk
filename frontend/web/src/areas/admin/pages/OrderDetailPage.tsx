@@ -46,19 +46,19 @@ export function OrderDetailPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="min-w-0 min-w-0 rounded-xl border border-border bg-surface p-4">
           <p className="text-xs text-text-muted uppercase">Customer</p>
           <p className="font-semibold">{o.customer_name}</p>
           {o.customer_phone && <p className="text-sm text-text-muted">{o.customer_phone}</p>}
         </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="min-w-0 min-w-0 rounded-xl border border-border bg-surface p-4">
           <p className="text-xs text-text-muted uppercase">Total</p>
           <p className="text-xl font-bold tabular-nums">{formatINR(o.total)}</p>
           {o.discount_applied && (
             <p className="text-sm text-discount">Discount −{formatINR(o.discount_amount)}</p>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="min-w-0 min-w-0 rounded-xl border border-border bg-surface p-4">
           <p className="text-xs text-text-muted uppercase">Profit</p>
           <p className="text-xl font-bold tabular-nums">{o.profit ? formatINR(o.profit) : '—'}</p>
           <p className="text-sm text-text-muted">Cost {formatINR(o.total_cost)}</p>
@@ -69,42 +69,56 @@ export function OrderDetailPage() {
         <p className="rounded-lg bg-bg px-3 py-2 text-sm">Reject reason: {o.reject_reason}</p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-border text-xs text-text-muted uppercase">
-            <tr>
-              <th className="px-3 py-2">Product</th>
-              <th className="px-3 py-2 text-right">Qty</th>
-              <th className="px-3 py-2 text-right">Cost</th>
-              <th className="px-3 py-2 text-right">MP</th>
-              <th className="px-3 py-2 text-right">SP</th>
-              <th className="px-3 py-2 text-right">Charged</th>
-              <th className="px-3 py-2 text-right">Line total</th>
-              <th className="px-3 py-2 text-right">Profit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(o.lines ?? []).map((l) => (
-              <tr key={l.code} className="border-b border-border last:border-0 tabular-nums">
-                <td className="px-3 py-2">
-                  <Link to={`/admin/products/${l.product_id}`} className="hover:text-primary">
-                    {l.name}
-                  </Link>
-                  <span className="block font-mono text-xs text-text-muted">{l.code}</span>
-                </td>
-                <td className="px-3 py-2 text-right">{l.qty}</td>
-                <td className="px-3 py-2 text-right">{formatINR(l.unit_cost)}</td>
-                <td className="px-3 py-2 text-right">{formatINR(l.unit_mp)}</td>
-                <td className="px-3 py-2 text-right">{formatINR(l.unit_sp)}</td>
-                <td className="px-3 py-2 text-right font-medium">{formatINR(l.unit_price)}</td>
-                <td className="px-3 py-2 text-right">{formatINR(l.line_total)}</td>
-                <td className="px-3 py-2 text-right">
-                  {o.status === 'confirmed' ? formatINR(l.profit) : '—'}
-                </td>
+      <div className="overflow-x-auto min-w-0 min-w-0 rounded-xl border border-border bg-surface">
+        <div className="min-w-0 overflow-x-auto">
+          <table className="mobile-records w-full text-left text-sm">
+            <thead className="border-b border-border text-xs text-text-muted uppercase">
+              <tr>
+                <th className="px-3 py-2">Product</th>
+                <th className="px-3 py-2 text-right">Qty</th>
+                <th className="px-3 py-2 text-right">Cost</th>
+                <th className="px-3 py-2 text-right">MP</th>
+                <th className="px-3 py-2 text-right">SP</th>
+                <th className="px-3 py-2 text-right">Charged</th>
+                <th className="px-3 py-2 text-right">Line total</th>
+                <th className="px-3 py-2 text-right">Profit</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(o.lines ?? []).map((l) => (
+                <tr key={l.code} className="border-b border-border last:border-0 tabular-nums">
+                  <td data-label="Product" className="px-3 py-2">
+                    <Link to={`/admin/products/${l.product_id}`} className="hover:text-primary">
+                      {l.name}
+                    </Link>
+                    <span className="block font-mono text-xs text-text-muted">{l.code}</span>
+                  </td>
+                  <td data-label="Quantity" className="px-3 py-2 text-right">
+                    {l.qty}
+                  </td>
+                  <td data-label="Cost" className="px-3 py-2 text-right">
+                    {formatINR(l.unit_cost)}
+                  </td>
+                  <td data-label="MP" className="px-3 py-2 text-right">
+                    {formatINR(l.unit_mp)}
+                  </td>
+                  <td data-label="SP" className="px-3 py-2 text-right">
+                    {formatINR(l.unit_sp)}
+                  </td>
+                  <td data-label="Charged" className="px-3 py-2 text-right font-medium">
+                    {formatINR(l.unit_price)}
+                  </td>
+                  <td data-label="Line total" className="px-3 py-2 text-right">
+                    {formatINR(l.line_total)}
+                  </td>
+                  <td data-label="Profit" className="px-3 py-2 text-right">
+                    {o.status === 'confirmed' ? formatINR(l.profit) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Link

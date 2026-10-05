@@ -106,7 +106,7 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <form
-          className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5"
+          className="flex flex-col gap-5 min-w-0 rounded-xl border border-border bg-surface p-5"
           onSubmit={(e) => {
             e.preventDefault();
             if (valid) save.mutate(draft);
@@ -178,7 +178,7 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
           </div>
         </form>
 
-        <div className="rounded-xl border border-border bg-surface p-5">
+        <div className="min-w-0 rounded-xl border border-border bg-surface p-5">
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
             Examples {dirty && <span className="text-xs font-normal text-warning">(unsaved)</span>}
             {examples.isFetching && <Spinner label="Updating" className="text-text-muted" />}
@@ -186,30 +186,32 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
           {examples.isError ? (
             <p className="text-sm text-danger">{apiErrorMessage(examples.error)}</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs text-text-muted uppercase">
-                <tr>
-                  <th className="py-2 text-left">Cost</th>
-                  <th className="py-2 text-right">MP</th>
-                  <th className="py-2 text-right">Bigger MP</th>
-                  <th className="py-2 text-right">SP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(examples.data ?? []).map((ex) => (
-                  <tr key={ex.cost_price} className="border-t border-border tabular-nums">
-                    <td className="py-2">{formatINR(ex.cost_price)}</td>
-                    <td className="py-2 text-right font-medium">{formatINR(ex.market_price)}</td>
-                    <td className="py-2 text-right text-text-muted">
-                      {ex.mp_options[1] ? formatINR(ex.mp_options[1].value) : '—'}
-                    </td>
-                    <td className="py-2 text-right">
-                      {ex.selling_price ? formatINR(ex.selling_price) : '—'}
-                    </td>
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-text-muted uppercase">
+                  <tr>
+                    <th className="py-2 text-left">Cost</th>
+                    <th className="py-2 text-right">MP</th>
+                    <th className="py-2 text-right">Bigger MP</th>
+                    <th className="py-2 text-right">SP</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(examples.data ?? []).map((ex) => (
+                    <tr key={ex.cost_price} className="border-t border-border tabular-nums">
+                      <td className="py-2">{formatINR(ex.cost_price)}</td>
+                      <td className="py-2 text-right font-medium">{formatINR(ex.market_price)}</td>
+                      <td className="py-2 text-right text-text-muted">
+                        {ex.mp_options[1] ? formatINR(ex.mp_options[1].value) : '—'}
+                      </td>
+                      <td className="py-2 text-right">
+                        {ex.selling_price ? formatINR(ex.selling_price) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
@@ -244,34 +246,36 @@ function PricingRulesEditor({ saved }: { saved: PricingSettings }) {
               <strong>{dryRun?.affected}</strong> active product(s) will get new automatic prices.
               Hand-set (manual) prices are kept.
             </p>
-            <table className="w-full">
-              <thead className="text-xs text-text-muted uppercase">
-                <tr>
-                  <th className="py-1 text-left">Product</th>
-                  <th className="py-1 text-right">MP</th>
-                  <th className="py-1 text-right">SP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dryRun?.sample.map((s) => (
-                  <tr key={s.id} className="border-t border-border tabular-nums">
-                    <td className="py-1">
-                      <span className="font-mono text-xs">{s.code}</span> {s.name}
-                    </td>
-                    <td className="py-1 text-right">
-                      {s.changes.market_price
-                        ? `${s.changes.market_price[0]} → ${s.changes.market_price[1]}`
-                        : '—'}
-                    </td>
-                    <td className="py-1 text-right">
-                      {s.changes.selling_price
-                        ? `${s.changes.selling_price[0]} → ${s.changes.selling_price[1]}`
-                        : '—'}
-                    </td>
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full">
+                <thead className="text-xs text-text-muted uppercase">
+                  <tr>
+                    <th className="py-1 text-left">Product</th>
+                    <th className="py-1 text-right">MP</th>
+                    <th className="py-1 text-right">SP</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {dryRun?.sample.map((s) => (
+                    <tr key={s.id} className="border-t border-border tabular-nums">
+                      <td className="py-1">
+                        <span className="font-mono text-xs">{s.code}</span> {s.name}
+                      </td>
+                      <td className="py-1 text-right">
+                        {s.changes.market_price
+                          ? `${s.changes.market_price[0]} → ${s.changes.market_price[1]}`
+                          : '—'}
+                      </td>
+                      <td className="py-1 text-right">
+                        {s.changes.selling_price
+                          ? `${s.changes.selling_price[0]} → ${s.changes.selling_price[1]}`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {(dryRun?.affected ?? 0) > (dryRun?.sample.length ?? 0) && (
               <p className="text-xs text-text-muted">Showing the first {dryRun?.sample.length}.</p>
             )}

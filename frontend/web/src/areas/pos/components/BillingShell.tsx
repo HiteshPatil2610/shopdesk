@@ -20,16 +20,18 @@ function Clock() {
 export function BillingShell() {
   const { user } = useMe();
   return (
-    <div className="flex min-h-screen flex-col text-base">
-      <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-3">
+    <div className="flex min-h-dvh flex-col text-base">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-3 sm:px-5">
         <p className="font-bold">
           ShopDesk <span className="font-semibold text-text-muted">· BILLING</span>
         </p>
-        <div className="flex items-center gap-4">
-          <span className="text-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="hidden text-sm lg:block">
             Cashier: <strong>{user.full_name}</strong>
           </span>
-          <Clock />
+          <span className="hidden xl:block">
+            <Clock />
+          </span>
           <AreaSwitcher area="pos" />
           <UserButton />
         </div>
