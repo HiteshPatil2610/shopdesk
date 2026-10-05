@@ -1,6 +1,6 @@
 # Spec 11 — Single Server (one app, one deployment)
 
-**Status:** 🟨 Approved; implementation in progress. · **Depends on:** 01–09 (built) · **Replaces parts of:** spec 10 (deployment), architecture §1/§3/§7/§10/§11, ADRs A1, A9, A11, A12 · **Server(s):** both, merged
+**Status:** ✅ Implementation complete; owner Preview/deployment verification pending. · **Depends on:** 01–09 (built) · **Replaces parts of:** spec 10 (deployment), architecture §1/§3/§7/§10/§11, ADRs A1, A9, A11, A12 · **Server(s):** both, merged
 
 ## 1. Goal
 Run ShopDesk as **one Flask API and one React web app on one Vercel project and one domain**, instead of 2 APIs + 2 web apps on 4 projects and 4 domains. The product idea stays the same:
@@ -237,7 +237,7 @@ https://shop.<domain>
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
-  "headers": [ { "source": "/(.*)", "headers": [ "…same security headers as today, CSP generated per domain…" ] } ]
+  "headers": [ { "source": "/((?!api(?:/|$)).*)", "headers": [ "…web security headers; API keeps Flask policy…" ] } ]
 }
 ```
 - Vercel looks for Python functions in the project's `api/` folder, so a **root** `api/index.py` imports from `backend/`, and a root `requirements.txt` contains `-r backend/requirements.txt`. (Exact handling of Python deps in a mixed Node + Python project must be checked against Vercel's current docs during implementation; a test deploy to a Preview is part of the tasks.)
@@ -246,9 +246,9 @@ https://shop.<domain>
 
 ### 8.3 Web CSP (one policy)
 ```
-default-src 'self'; script-src 'self' https://clerk.<domain> https://challenges.cloudflare.com;
-connect-src 'self' https://clerk.<domain>; img-src 'self' data: blob: https://img.clerk.com https://res.cloudinary.com;
-style-src 'self' 'unsafe-inline'; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:;
+default-src 'self'; script-src 'self' https://clerk.<domain> https://challenges.cloudflare.com https://*.protect.clerk.com;
+connect-src 'self' https://clerk.<domain> https://*.protect.clerk.com:*; img-src 'self' data: blob: https://img.clerk.com https://res.cloudinary.com;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com; worker-src 'self' blob:;
 frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
 ```
 Simpler than today: `connect-src` no longer lists two API hosts because the API is `'self'`. `scripts/security/configure-web-headers.mjs` writes this into the one root `vercel.json`; `frontend/scripts/check-production-env.mjs` checks it (and no longer requires `VITE_API_BASE_URL`).
@@ -307,21 +307,21 @@ Each step keeps all tests green before moving on. Commit after each group.
 - [x] 12. Move/adjust the 66 frontend tests; add guard/redirect tests (§11).
 
 **C. Tooling, CI and docs**
-- [ ] 13. `.claude/launch.json` (2 configs), `scripts/dev.ps1`, `scripts/smoke.ps1` (one base URL), `configure-web-headers.mjs`, `check-production-env.mjs`.
-- [ ] 14. `.github/workflows/ci.yml` (one web build), `migrate.yml` (`flask --app shopdesk db upgrade`), `backup.yml` unchanged.
-- [ ] 15. Docs: `CLAUDE.md`, `README.md`, `SETUP_GUIDE.md` (env table, ports, commands, troubleshooting), `MANUAL_DEPLOYMENT.md` (one project), `.env.example`, `context/architecture.md` (§1, §3, §7, §10, §11, new ADR A14 superseding A1/A11/A12, A9 reworded to "1 Vercel project"), `ai-workflow-rules.md` (rules mentioning "each API"), spec 10 rewritten for one project, spec 09 checklist wording ("each API rejects the other app's tokens" → "every admin route refuses a cashier"), `progress-tracker.md`.
-- [ ] 16. Preview deploy on Vercel (Hobby is fine for this) with the Neon `dev` branch and Clerk dev keys to confirm the mixed static + Python build works. Owner does this step or approves it.
+- [x] 13. `.claude/launch.json` (2 configs), `scripts/dev.ps1`, `scripts/smoke.ps1` (one base URL), `configure-web-headers.mjs`, `check-production-env.mjs`.
+- [x] 14. `.github/workflows/ci.yml` (one web build), `migrate.yml` (`flask --app shopdesk db upgrade`), `backup.yml` unchanged.
+- [x] 15. Docs: `CLAUDE.md`, `README.md`, `SETUP_GUIDE.md` (env table, ports, commands, troubleshooting), `MANUAL_DEPLOYMENT.md` (one project), `.env.example`, `context/architecture.md` (§1, §3, §7, §10, §11, new ADR A14 superseding A1/A11/A12, A9 reworded to "1 Vercel project"), `ai-workflow-rules.md` (rules mentioning "each API"), spec 10 rewritten for one project, spec 09 checklist wording ("each API rejects the other app's tokens" → "every admin route refuses a cashier"), `progress-tracker.md`.
+- [x] 16. Owner handoff prepared in MANUAL_DEPLOYMENT.md §6 for a dev-only Preview and mixed static + Python verification. Per explicit owner instruction, no deployment or service settings changes were performed; remote acceptance remains unchecked below.
 
 ## 11. Acceptance criteria
 - [ ] `flask --app shopdesk run -p 5001` + `npm run dev -w web` is the whole local stack; the owner signs in at `http://localhost:5173` and lands on `/admin`; a cashier signs in and lands on `/pos`.
 - [ ] A full sale (quote → discount → confirm) works, stock drops, and `/admin/orders` shows it with an `order.confirm` audit row whose `source` is `pos`.
 - [ ] Cashier: opening `/admin` shows "No access", the network tab shows **no** admin chunk downloaded, and calling any `/api/admin/*` URL with their token returns 403 `ROLE_NOT_ALLOWED` plus an `auth.role_denied` audit row.
-- [ ] No `/api/pos/*` response contains cost/profit fields.
-- [ ] API responses have no `Access-Control-Allow-Origin` header.
-- [ ] A 300 KB JSON body to `/api/pos/cart/quote` → 413; a 3 MB image to the image route → accepted.
-- [ ] All backend tests (≈240 + new) and frontend tests pass; lint, typecheck, build, `pip-audit`, `npm audit`, gitleaks clean.
+- [x] No `/api/pos/*` response contains cost/profit fields.
+- [x] API responses have no `Access-Control-Allow-Origin` header.
+- [x] A 300 KB JSON body to `/api/pos/cart/quote` → 413; a 3 MB image to the image route → accepted.
+- [x] All backend tests (294) and frontend tests pass; lint, typecheck, build, `pip-audit`, `npm audit`, gitleaks clean.
 - [ ] A Vercel Preview of the single project serves `/`, `/admin/products` (deep link), `/pos`, `/api/health`, and `/api/auth/me` without a token → 401.
-- [ ] No business-logic file in `core/services`, `core/pricing.py`, `core/models` or `migrations/` changed (diff check).
+- [x] No business-logic file in `core/services`, `core/pricing.py`, `core/models` or `migrations/` changed (diff check).
 
 ## 12. Tests
 - **Route meta-tests (rewritten):**
@@ -353,3 +353,13 @@ Each step keeps all tests green before moving on. Commit after each group.
 - Per-area Sentry/log tagging if logs get busy.
 
 Owner approved preserving existing env names and all required Clerk fraud-protection/Google Fonts CSP hosts. Spec 09 baseline: e7137ae.
+
+## 16. Verification record (2026-10-05)
+
+- A: 292 backend / 67 frontend tests; B: 292 backend / 80 frontend tests.
+- Final C: **294 backend / 80 frontend tests**, plus **5 deployment guard tests**. Ruff, Black, mypy, ESLint, Prettier, TypeScript and the one-web production build pass. The build graph guard excludes admin modules from POS/shell static imports. pip-audit and production npm audit have zero known vulnerabilities; full-history/staged gitleaks clean.
+- Local two-process launch tested. One-origin smoke passes /, /admin/products, /pos, health and anonymous auth/me 401. Demo admin sign-in and switching between areas verified in browser.
+- Cashier live browser acceptance remains pending: Clerk rejects the supplied demo password. Automated frontend guards and the exhaustive authenticated cashier API sweep pass.
+- Full live dev sale remains pending: the dev catalogue is empty. Isolated test-DB sale, stock, audit source and response-schema tests pass; no live demo sale/product was added.
+- Vercel mixed-runtime Preview, hosted headers/assets and production checks remain owner actions. No deployment, DNS or Clerk/Neon/Vercel settings were changed.
+- Compared with baseline e7137ae, business services, pricing.py, models, migrations and backup.yml are unchanged. Local ignored env files were adapted to the renamed app while preserving all credential/database values.

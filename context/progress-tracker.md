@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Spec 11 single-app refactor on feat/single-server. Groups A/B built and verified; group C next. Spec 09 baseline e7137ae preserved. No deployment.
+**Current phase:** Spec 11 single-app refactor on feat/single-server. Groups A/B/C implemented and validated; owner Preview and live cashier/sale acceptance pending. Spec 09 baseline e7137ae preserved. No deployment.
 **Last updated:** 2026-10-05
 
 ## Status overview
@@ -19,7 +19,8 @@
 | 3 | [07 Orders & stock](specs/07-orders-and-stock.md) | ✅ Built | Confirm/reject, receipts, stock adjust, race-tested |
 | 4 | [08 Dashboard & reports](specs/08-dashboard-and-reports.md) | ✅ Built | KPIs + charts + low stock + cashier summary + CSV |
 | 4 | [09 Security hardening](specs/09-security-hardening.md) | 🟨 Code built | Production Clerk/DB/CSP/backup/restore checks and sign-off pending owner |
-| 4 | [10 Deployment](specs/10-deployment.md) | 🟨 Guide ready | Owner performs manual deployment; see MANUAL_DEPLOYMENT.md |
+| 4 | [10 Deployment](specs/10-deployment.md) | 🟨 Guide ready | One-project manual deployment; Preview/production pending owner |
+| 5 | [11 Single server](specs/11-single-server.md) | ✅ Code complete | One API + one web; 294 backend / 80 frontend + 5 guard tests; remote Preview and live cashier/sale checks pending |
 
 Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
@@ -30,9 +31,11 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 - [ ] **M3: Catalogue.** Add/edit products with images and auto MP/SP, with everything audited (specs 03–05)
 - [x] **M4: First sale.** Bill → discount → confirm → stock reduced → audit row (specs 06–07)
 - [x] **M5: Owner insights.** Dashboard, low stock, CSV export (spec 08)
-- [ ] **M6: Production-ready.** Hardened, backed up, deployed on Vercel (4 projects) + Neon `main` + Clerk production (specs 09–10)
+- [ ] **M6: Production-ready.** Hardened, backed up, deployed on Vercel (1 project) + Neon `main` + Clerk production (specs 09–10)
 
 ## Current sprint / next up
+
+Current: finish single-project validation, then owner performs Preview and production steps in MANUAL_DEPLOYMENT.md. The original sprint plan below is historical.
 
 0. Owner: create the GitHub, Neon, Clerk and Cloudinary accounts and fill `.env` (SETUP_GUIDE §3–§8, checklist §14)
 1. Spec 01, tasks 1–5: repo skeleton, config, Neon-aware `core/db.py`, both Flask apps with health checks
@@ -126,3 +129,7 @@ Owner will perform deployment manually. Follow [MANUAL_DEPLOYMENT.md](../MANUAL_
 | 2026-10-05 | Claude | **Spec 07 built**: orders + items (price snapshots) + daily counters (migration 0005), confirm with row locks / idempotency / ledger / audit, reject without stock change, receipts (24h cashier rule), my-orders, admin orders list/detail with profit, stock adjust/movements/verify, JIT mirror race fix. POS confirm dialog (payment mode), 409 line marking, reject with reason, 80mm receipt print, New order (N), my orders today. Admin Orders, Order detail, Stock page, Adjust stock + Stock history on products. 232 backend + 63 frontend tests | Owner: try a full sale end-to-end. Next: spec 08 |
 | 2026-10-05 | Claude | **Spec 08 built**: report service (summary with vs-yesterday, sales by day zero-filled in IST, top products, low stock, cashier summary, audited admin-only sales CSV). Dashboard (4 KPI tiles, 14-day sales chart, top-5 chart, low stock + Restock) refreshing every 60 s, Reports page (presets/date range, sales chart, top products, cashiers, CSV). Lazy-loaded admin routes (largest chunk 827 → 470 KB). 240 backend + 66 frontend tests | Next: spec 09 |
 | 2026-10-05 | Claude + owner | Owner chose to merge the 4 deployables into **one server** (1 Flask app with `/api/admin` + `/api/pos` areas, 1 React app with `/admin` + `/pos`, 1 Vercel project). Wrote proposal `specs/11-single-server.md`; no code changed. Spec 09 work from the other session kept as is | Owner: review spec 11 and answer its §14 questions. Implement only after the go-ahead |
+
+### 2026-10-05 — Spec 11 group C
+
+Updated two-process launch configuration/scripts, single-origin smoke, root-only CSP generator and build env guard, one-web CI build and shopdesk migration command. Backup workflow unchanged. Updated all task 15 docs and provided owner-only Preview/production steps. Final checks: 294 backend tests, 80 frontend tests, 5 production guard tests; backend/frontend lint/format/types/build pass; pip-audit/npm production audit and full-history/staged gitleaks clean. Generator preserves root routing/build and passes live-key CSP checks. Local dev smoke and admin login/area switching verified. Clerk rejects the supplied cashier password; cashier browser check remains pending. Empty dev catalogue means live sale was not performed; isolated test-DB flows pass. No deployment or service settings changes. Local ignored legacy env names/public key location were migrated without changing credential or DB values. Business/migration diff against e7137ae is empty.

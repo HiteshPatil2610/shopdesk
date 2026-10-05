@@ -28,31 +28,9 @@ Everything you need to set up ShopDesk on **Vercel + Neon + Clerk + Cloudinary**
 
 ## 1. The big picture
 
-```
-                  YOUR LAPTOP (development)                     THE INTERNET (production, spec 10)
-  admin-web  http://localhost:5173 ─┐                    admin.<domain>      Vercel (static site)
-  pos-web    http://localhost:5174 ─┤                    pos.<domain>        Vercel (static site)
-  admin_api  http://localhost:5001 ─┤                    admin-api.<domain>  Vercel (Python functions)
-  pos_api    http://localhost:5002 ─┘                    pos-api.<domain>    Vercel (Python functions)
-          │            │           │                           │        │         │
-          ▼            ▼           ▼                           ▼        ▼         ▼
-     Neon branch    Clerk dev   Cloudinary               Neon branch  Clerk     Cloudinary
-       "dev"        instance    shopdesk-dev/              "main"     production shopdesk/
-```
+Local development uses two processes: Flask `shopdesk` at localhost:5001 and Vite `web` at localhost:5173. Vite proxies `/api` to Flask. All staff sign in at 5173; `/admin` is for owners/managers and `/pos` is for billing. Deployment uses one Vercel project at the repository root, serving static web and a Python API under one HTTPS origin. Neon dev, Clerk dev and a Cloudinary dev folder are separate from production main/live credentials.
 
-| Service | Job | Cost |
-|---|---|---|
-| **Neon** | PostgreSQL database (shared by both servers) | Free |
-| **Clerk** | Sign-in, passwords, sessions, user accounts | Free |
-| **Cloudinary** | Product image storage + thumbnails + CDN | Free |
-| **Vercel** | Hosts all 4 pieces: both React websites + both Flask APIs | Hobby free for building and testing. **Pro (~$20/month) for the live shop**, because Hobby is non-commercial |
-| **Upstash Redis** | Shared store for API rate limits (production) | Free, via the Vercel Marketplace |
-| **GitHub** | Code, CI tests, migrations, nightly backups | Free (private repo) |
-| **Domain name** | Required by Clerk's production mode | **~₹100–900/year** |
-
-You only need **GitHub, Neon, Clerk and Cloudinary** to start building. Vercel, Upstash and the domain come later, in spec 10.
-
----
+Create GitHub, Neon, Clerk and Cloudinary accounts for development. Vercel, Redis and a verified domain are needed for deployment. Use [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md) for the ordered Preview and production setup.
 
 ## 2. Free tiers and their limits
 
@@ -150,8 +128,8 @@ Use the **plain** `postgresql://` form for psql. It should print `PostgreSQL 17.
 | Account | What for |
 |---|---|
 | **Domain registrar** (any: Namecheap, GoDaddy, Hostinger, BigRock, Cloudflare Registrar) | Buy e.g. `yourshop.in`. Clerk production needs it. DNS can stay at the registrar or move to Vercel DNS |
-| **Vercel** (https://vercel.com, sign in with GitHub) | Import the repo **4 times** (admin-web, pos-web, admin-api, pos-api). See spec 10 §3.4 |
-| **Upstash Redis** (via Vercel → Storage / Marketplace) | Free Redis for production rate limits, connected to both API projects |
+| **Vercel** (https://vercel.com, sign in with GitHub) | Import the repo once at repo root. See MANUAL_DEPLOYMENT.md §6 |
+| **Upstash Redis** (via Vercel → Storage / Marketplace) | Free Redis for production rate limits, connected to the single project |
 | **Clerk production instance** | Created inside your Clerk app once the domain is ready |
 
 ---
@@ -275,18 +253,17 @@ code .env
 | Variable | Required | Dev value | What it does |
 |---|---|---|---|
 | `DATABASE_URL` | ✅ | Neon `dev` **pooled** URL, starting `postgresql+psycopg://` | Used by both running servers |
-| `DATABASE_URL_UNPOOLED` | ✅ (admin) | Neon `dev` **direct** URL, starting `postgresql+psycopg://` | Used by migrations (`flask db upgrade`). Only admin_api needs it |
+| `DATABASE_URL_UNPOOLED` | ✅ (migrations) | Neon `dev` **direct** URL, starting `postgresql+psycopg://` | Used by migrations (`flask db upgrade`). The migration tool uses it; the deployed runtime must not receive it |
 | `TEST_DATABASE_URL` | ✅ for tests | `postgresql+psycopg://shopdesk:local_test_password@localhost:5432/shopdesk_test` | pytest only. The tests refuse to run unless the DB name ends in `_test` (or the Neon branch is `test`) |
 | `DB_POOL_SIZE` | — | `5` | Keep it small (Neon + free tier) |
 | `DB_ECHO` | — | `false` | `true` prints every SQL query |
 
-#### Servers
-| Variable | Required | Dev value | What it does |
+#### Web origin
+| Variable | Required | Example | What it does |
 |---|---|---|---|
-| `ADMIN_PORT` / `POS_PORT` | — | `5001` / `5002` | Local ports only. Not used on Vercel |
-| `SHOPDESK_SERVER` | Vercel only | *(not set locally)* | `admin` or `pos`. Tells `backend/api/index.py` which Flask app to build. Locally, `flask --app admin_api` / `--app pos_api` chooses instead |
-| `ADMIN_CORS_ORIGINS` | ✅ | `http://localhost:5173` | Origins allowed to call the Admin API. Comma-separated, never `*` |
-| `POS_CORS_ORIGINS` | ✅ | `http://localhost:5174` | Same for the Billing API |
+| `AUTHORIZED_PARTIES` | yes | `http://localhost:5173` | Comma-separated exact web origins accepted in JWT azp. Production requires HTTPS |
+
+Remove obsolete ADMIN_/POS_AUTHORIZED_PARTIES, ADMIN_/POS_CORS_ORIGINS, SHOPDESK_SERVER and VITE_API_BASE_URL. There are no separate API-port environment settings or CORS allow-lists.
 
 #### Clerk (auth)
 | Variable | Required | Dev value | What it does |
@@ -294,8 +271,6 @@ code .env
 | `CLERK_PUBLISHABLE_KEY` | — | `pk_test_…` | For reference/CLI. The frontends use the `VITE_` copy |
 | `CLERK_SECRET_KEY` | ✅ | `sk_test_…` | Backend calls to Clerk (create users, change roles, ban). **Never** put it in frontend code |
 | `CLERK_JWT_KEY` | ✅ | PEM public key (§7.3) | Verifies session tokens locally on every request, with no network call |
-| `ADMIN_AUTHORIZED_PARTIES` | ✅ | `http://localhost:5173` | admin_api only accepts tokens issued to these frontend origins |
-| `POS_AUTHORIZED_PARTIES` | ✅ | `http://localhost:5174` | pos_api only accepts tokens issued to these origins |
 | `CLERK_WEBHOOK_SIGNING_SECRET` | prod | *(blank in dev)* | `whsec_…`. Verifies webhook calls from Clerk |
 
 #### Images (Cloudinary)
@@ -330,7 +305,7 @@ code .env
   cd backend
   .\venv\Scripts\python -m core.setup_tools fetch-clerk-key
   ```
-  Then restart both API servers. Run it again whenever `CLERK_PUBLISHABLE_KEY` changes (e.g. the production instance). If the key is wrong, the API refuses to start and tells you to run this.
+  Then restart the API server. Run it again whenever `CLERK_PUBLISHABLE_KEY` changes (e.g. the production instance). If the key is wrong, the API refuses to start and tells you to run this.
 - **`CLERK_JWT_KEY`** is a multi-line PEM. Put it on **one line in double quotes**, with `\n` where the line breaks were:
   ```ini
   CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqh...\n...IDAQAB\n-----END PUBLIC KEY-----"
@@ -339,35 +314,20 @@ code .env
 - **Neon URLs:** change `postgresql://` to `postgresql+psycopg://`, and keep the `?sslmode=require…` part.
 - No spaces around `=`. No quotes needed except for the PEM.
 - Use forward slashes in Windows paths.
-- **Restart both servers** after editing `.env`.
+- **Restart the API and web servers** after editing `.env`.
 - **Never point your local `.env` at the Neon `main` branch.** That's production data.
 
 ---
 
 ## 8. Frontend env files
 
-The frontends only hold **public** values. Anything starting with `VITE_` ends up in the browser bundle, so **never put a secret in a `VITE_` variable**.
+Only public values belong in the browser. Put the development public Clerk key in `frontend/web/.env.development.local` (ignored):
 
-`frontend/admin-web/.env.development` (committed):
-```ini
-VITE_APP_TITLE=ShopDesk Admin
-VITE_API_PROXY_TARGET=http://localhost:5001
-VITE_API_BASE_URL=
-```
-`frontend/pos-web/.env.development` (committed):
-```ini
-VITE_APP_TITLE=ShopDesk Billing
-VITE_API_PROXY_TARGET=http://localhost:5002
-VITE_API_BASE_URL=
-```
-`frontend/admin-web/.env.development.local` **and** `frontend/pos-web/.env.development.local` (gitignored, one each):
 ```ini
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxx
 ```
-- An empty `VITE_API_BASE_URL` means "same origin", so Vite proxies `/api` to the Flask server in dev.
-- In production, each Vercel web project sets `VITE_API_BASE_URL=https://admin-api.<domain>` (or `pos-api`) and the `pk_live_…` key (§11). `VITE_` values are baked in at build time, so **redeploy** after changing them.
 
----
+The committed development file has only the app title and proxy target. The public key belongs in the ignored local override. Production gets `VITE_CLERK_PUBLISHABLE_KEY=pk_live_...` from the single Vercel project; Preview gets a matching dev key. Keys are embedded at build time. API paths are always same-origin `/api/auth`, `/api/admin`, `/api/pos`; delete `VITE_API_BASE_URL` from old env files and dashboard settings.
 
 ## 9. First run (after spec 01 is built)
 
@@ -385,14 +345,14 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ### 9.2 Create the tables on Neon `dev`
 ```powershell
-flask --app admin_api db upgrade
+flask --app shopdesk db upgrade
 ```
 ✅ Neon console → branch `dev` → Tables shows `alembic_version` (and more tables as the specs progress).
 
 ### 9.3 Link your Clerk owner account (after spec 02)
 Sign in once at http://localhost:5173. ShopDesk creates your local user record automatically. If you skipped setting the metadata in §3.3 step 6:
 ```powershell
-flask --app admin_api promote-admin --clerk-user-id user_xxxxxxxx
+flask --app shopdesk promote-admin --clerk-user-id user_xxxxxxxx
 ```
 (The user ID is shown on the user's page in the Clerk dashboard.)
 
@@ -402,15 +362,14 @@ cd E:\Personal-Projects\ShopDesk\frontend
 npm install
 ```
 
-### 9.5 Start everything (`scripts\dev.ps1`, or 4 terminals)
+### 9.5 Start everything (two terminals, or scripts\dev.ps1)
+
 | Terminal | Folder | Command | URL |
 |---|---|---|---|
-| 1 | `backend` (venv on) | `flask --app admin_api run -p 5001 --debug` | http://localhost:5001/api/health |
-| 2 | `backend` (venv on) | `flask --app pos_api run -p 5002 --debug` | http://localhost:5002/api/health |
-| 3 | `frontend` | `npm run dev -w admin-web` | http://localhost:5173 |
-| 4 | `frontend` | `npm run dev -w pos-web` | http://localhost:5174 |
+| 1 | backend, venv active | `flask --app shopdesk run -p 5001 --debug` | http://localhost:5001/api/health |
+| 2 | frontend | `npm run dev -w web` | http://localhost:5173 |
 
-✅ **Check:** both health URLs show `"db": "ok"`. Both sites load, and after spec 02 you can sign in as `owner`.
+Alternatively run `.\scripts\dev.ps1` from repo root. It refuses occupied ports, starts hidden background processes and prints process IDs; logs are in ignored `tmp/dev`. Stop the API PID and the web launcher's process tree using the instructions it prints. Sign in at 5173: owner/manager lands in Admin or its last permitted area; cashier lands in POS.
 
 ### 9.6 Run the checks
 ```powershell
@@ -427,7 +386,7 @@ cd E:\Personal-Projects\ShopDesk
 git pull
 cd backend; .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt -r requirements-dev.txt   # if requirements changed
-flask --app admin_api db upgrade                          # if migrations changed
+flask --app shopdesk db upgrade                          # if migrations changed
 cd ..\frontend; npm install                               # if package.json changed
 cd ..; .\scripts\dev.ps1
 ```
@@ -438,7 +397,7 @@ Read context/README.md, context/ai-workflow-rules.md and context/progress-tracke
 Tell me where we are, then propose the next task.
 ```
 
-**Database change:** edit models → `flask --app admin_api db migrate -m "describe change"` → **read the generated file** → `flask --app admin_api db upgrade` (applies to Neon `dev`). Production gets it automatically on the next deploy.
+**Database change:** edit models → `flask --app shopdesk db migrate -m "describe change"` → **read the generated file** → `flask --app shopdesk db upgrade` (applies to Neon `dev`). Production gets it automatically on the next deploy.
 
 **Fresh dev data:** Neon console → branch `dev` → **Reset from parent** (copies production's current data into dev). Only do this if you're happy for dev to be overwritten.
 
@@ -446,33 +405,15 @@ Tell me where we are, then propose the next task.
 
 ## 11. Production: which variable goes where
 
-Spec 10 does the actual deployment. This table is the map.
+One Vercel project (`shopdesk`) has repo-root Root Directory. Set Production values only in Production scope; Preview uses dev values. [MANUAL_DEPLOYMENT.md §6](MANUAL_DEPLOYMENT.md#6-import-one-vercel-project--preview-first) has the complete table and Preview procedure.
 
-There are 4 Vercel projects (spec 10). Add variables in each project → **Settings → Environment Variables**, ticking the **Production** environment only for secrets.
+| Destination | Variables |
+|---|---|
+| Vercel runtime | APP_ENV=production, DATABASE_URL (main pooled shopdesk_app + TLS), CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY, CLERK_WEBHOOK_SIGNING_SECRET, AUTHORIZED_PARTIES=https://shop.<domain>, CLOUDINARY_URL, CLOUDINARY_FOLDER, RATELIMIT_STORAGE_URI=rediss://..., receipt settings |
+| Vercel web build | VITE_CLERK_PUBLISHABLE_KEY=pk_live_... |
+| GitHub production Environment | NEON_MIGRATE_URL (direct owner), NEON_BACKUP_URL (direct read-only) |
 
-| Variable | Vercel `shopdesk-admin-api` | Vercel `shopdesk-pos-api` | Vercel `shopdesk-admin-web` | Vercel `shopdesk-pos-web` | GitHub secrets |
-|---|---|---|---|---|---|
-| `SHOPDESK_SERVER` | `admin` | `pos` | | | |
-| `APP_ENV=production`, `LOG_LEVEL=INFO`, `TZ_DISPLAY`, `CURRENCY` | ✅ | ✅ | | | |
-| `DATABASE_URL` (Neon **main**, **pooled**, `shopdesk_app` role) | ✅ | ✅ | | | |
-| `CLERK_SECRET_KEY` (`sk_live_…`), `CLERK_JWT_KEY` (production PEM) | ✅ | ✅ | | | |
-| `CLERK_WEBHOOK_SIGNING_SECRET` | ✅ | | | | |
-| `ADMIN_AUTHORIZED_PARTIES`, `ADMIN_CORS_ORIGINS` = `https://admin.<domain>` | ✅ | | | | |
-| `POS_AUTHORIZED_PARTIES`, `POS_CORS_ORIGINS` = `https://pos.<domain>` | | ✅ | | | |
-| `CLOUDINARY_URL`, `CLOUDINARY_FOLDER=shopdesk/products`, `MAX_UPLOAD_MB=4` | ✅ | ✅ | | | |
-| `RATELIMIT_STORAGE_URI` (Upstash `rediss://…`) | ✅ | ✅ | | | |
-| `SHOP_*`, `RECEIPT_FOOTER` | | ✅ | | | |
-| `VITE_CLERK_PUBLISHABLE_KEY` (`pk_live_…`) | | | ✅ | ✅ | |
-| `VITE_API_BASE_URL` | | | `https://admin-api.<domain>` | `https://pos-api.<domain>` | |
-| `NEON_MIGRATE_URL` (Neon main, **direct**, owner role) | | | | | ✅ |
-| `NEON_BACKUP_URL` (Neon main, **direct**, read-only role) | | | | | ✅ |
-
-Notes:
-- The running APIs **never** get the direct/owner URL. Only GitHub Actions uses it, to run migrations.
-- In Vercel you can paste `CLERK_JWT_KEY` as the real multi-line PEM.
-- Production uses **different keys from development**: Clerk `live` keys, the Neon `main` branch and the production Cloudinary folder. Never put production values in the **Preview** or **Development** environments.
-
----
+Running production code never receives the owner/direct or test database URL. Preserve the existing names DATABASE_URL_UNPOOLED and CLERK_WEBHOOK_SIGNING_SECRET for tools/settings that use them. No renamed aliases are supported. Remove legacy dual-server variables and VITE_API_BASE_URL. Generate root web CSP for the exact live Clerk host; configure Clerk origin and webhook to the single app domain.
 
 ## 12. Optional hardware
 
@@ -504,15 +445,15 @@ Notes:
 | Deep link like `/products` shows a Vercel 404 | The web app's `vercel.json` SPA rewrite is missing |
 | Changed a `VITE_` variable but the site didn't change | `VITE_` values are baked in at build time. Redeploy the web project |
 | Rate limits don't seem to apply in production | `RATELIMIT_STORAGE_URI` is still `memory://`. Connect Upstash Redis |
-| 401 `TOKEN_WRONG_APP` | `*_AUTHORIZED_PARTIES` doesn't match the exact frontend origin (scheme + host + port, no trailing slash) |
+| 401 `TOKEN_WRONG_APP` | `AUTHORIZED_PARTIES` doesn't match the exact frontend origin (scheme + host + port, no trailing slash) |
 | 401 `TOKEN_INVALID` | `CLERK_JWT_KEY` is wrong, or from the other instance (dev vs prod). Check the `\n` formatting (§7.3) |
-| 403 `NO_ROLE_ASSIGNED` / "Your account has no ShopDesk role yet" | Most often the user's **public metadata is empty**: Clerk → Users → the user → Metadata → Public → `{"role":"admin"}` → Save (or run `flask --app admin_api promote-admin --clerk-user-id user_…`). Otherwise the user has no `public_metadata.role`, or the `"metadata": "{{user.public_metadata}}"` session claim (§3.3 step 5) is missing. Sign out and back in after fixing |
+| 403 `NO_ROLE_ASSIGNED` / "Your account has no ShopDesk role yet" | Most often the user's **public metadata is empty**: Clerk → Users → the user → Metadata → Public → `{"role":"admin"}` → Save (or run `flask --app shopdesk promote-admin --clerk-user-id user_…`). Otherwise the user has no `public_metadata.role`, or the `"metadata": "{{user.public_metadata}}"` session claim (§3.3 step 5) is missing. Sign out and back in after fixing |
 | Sign-up form appears, or strangers can create accounts | Clerk Access mode is still **Open**. Set it to **Invite-only** (§3.3 step 7) |
 | Can't find a Clerk setting mentioned here | Clerk renames pages. Use the dashboard's search box, or the direct links in §3.3 (select the ShopDesk app first) |
 | Clerk sign-in widget is blank in production | CSP blocks Clerk domains. See spec 09 task 1, and check the browser console |
-| Image upload: "Image uploads aren't set up… placeholder text" or "Cloudinary rejected the credentials" | `CLOUDINARY_URL` still contains `<your_api_key>`/`<your_api_secret>`, or a wrong key. See §3.4, then restart the API servers |
+| Image upload: "Image uploads aren't set up… placeholder text" or "Cloudinary rejected the credentials" | `CLOUDINARY_URL` still contains `<your_api_key>`/`<your_api_secret>`, or a wrong key. See §3.4, then restart the API server |
 | Images upload but don't show | Check `thumb_url` in the API response opens in the browser, and that CSP allows `res.cloudinary.com` |
-| CORS error in the browser | In dev, use :5173/:5174 (the Vite proxy). In prod, check `*_CORS_ORIGINS` |
+| CORS error in the browser | Use :5173 and relative /api paths. Production API and web share one host; check rewrites and remove old API base URLs |
 | `Address already in use` | `Get-NetTCPConnection -LocalPort 5001 \| Select OwningProcess`, then close that program |
 | Tests wiped real data | Impossible if set up right: tests only run on a DB ending in `_test`. Check `TEST_DATABASE_URL` |
 
@@ -528,16 +469,16 @@ Notes:
 - [ ] Local `shopdesk_test` DB created. `TEST_DATABASE_URL` set
 - [ ] Clerk app created: Username + Password, `metadata` session claim, Access mode **Invite-only**
 - [ ] Clerk owner user created with public metadata `{"role":"admin"}`
-- [ ] `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `*_AUTHORIZED_PARTIES` in `.env`
-- [ ] `VITE_CLERK_PUBLISHABLE_KEY` ready for both `.env.development.local` files
+- [ ] `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `AUTHORIZED_PARTIES` in `.env`
+- [ ] `VITE_CLERK_PUBLISHABLE_KEY` ready for `frontend/web/.env.development.local`
 - [ ] Cloudinary account created. `CLOUDINARY_URL` + `CLOUDINARY_FOLDER=shopdesk-dev/products` in `.env`
 - [ ] `SHOP_NAME` set
 - [ ] VS Code extensions installed
 
 **Before spec 10 (deployment)**
 - [ ] Domain bought
-- [ ] Vercel account (GitHub login). 4 projects imported (spec 10 §3.4)
-- [ ] Upstash Redis connected to both API projects
+- [ ] Vercel account (GitHub login). one repo-root project imported (manual deployment §6)
+- [ ] Upstash Redis connected to the single project
 - [ ] GitHub secrets `NEON_MIGRATE_URL` + `NEON_BACKUP_URL` added
 - [ ] Vercel team upgraded to **Pro** before real sales
 - [ ] Clerk production instance created and DNS verified
@@ -545,4 +486,4 @@ Notes:
 
 ## Production hardening, deployment and operations
 
-Follow [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md) for the current ordered process, runtime/owner/backup roles, production environment matrix, session settings, restore drill and rotation procedure. Production settings now require exact HTTPS origins, a shopdesk_app runtime connection and rediss:// rate-limit storage. Run scripts/security/configure-web-headers.mjs with your actual domain before deployment. Legacy environment tables above should be read together with this guide; no deployment has been performed automatically.
+Follow [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md) for the current ordered process, runtime/owner/backup roles, production environment matrix, session settings, restore drill and rotation procedure. Production settings now require exact HTTPS origins, a shopdesk_app runtime connection and rediss:// rate-limit storage. Run scripts/security/configure-web-headers.mjs with your actual domain before deployment. No deployment has been performed automatically.

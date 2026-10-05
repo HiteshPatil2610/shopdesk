@@ -39,6 +39,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # General
@@ -86,6 +87,7 @@ class Settings(BaseSettings):
             "ADMIN_CORS_ORIGINS": "same-origin requests (CORS removed)",
             "POS_CORS_ORIGINS": "same-origin requests (CORS removed)",
             "SHOPDESK_SERVER": "the single shopdesk app",
+            "VITE_API_BASE_URL": "same-origin API paths",
         }
         supplied = {str(k).upper() for k in values} if isinstance(values, dict) else set()
         for old, replacement in legacy.items():

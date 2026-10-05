@@ -127,6 +127,7 @@ def test_valid_production_config(rsa_public_pem):
         "ADMIN_CORS_ORIGINS",
         "POS_CORS_ORIGINS",
         "SHOPDESK_SERVER",
+        "VITE_API_BASE_URL",
     ],
 )
 def test_legacy_names_raise_clear_error(monkeypatch, old):
@@ -150,3 +151,10 @@ def test_production_requires_exact_app_origin(rsa_public_pem, origin):
     values["authorized_parties"] = origin
     with pytest.raises(ValidationError, match="exact HTTPS"):
         make(**values)
+
+
+def test_settings_validation_does_not_expose_credentials():
+    marker = "private-credential-regression-marker"
+    with pytest.raises(ValidationError) as error:
+        make(database_url=marker, clerk_secret_key=marker, ADMIN_CORS_ORIGINS="old")
+    assert marker not in str(error.value)

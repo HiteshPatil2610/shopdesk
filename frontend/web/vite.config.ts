@@ -36,7 +36,7 @@ function areaChunkBoundary(): Plugin {
   };
 }
 
-// Dev: the browser talks to this Vite server only; /api is proxied to the Flask admin API,
+// Dev: the browser talks to this Vite server only; /api is proxied to the single Flask API,
 // so there are no CORS issues locally (architecture §11).
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');

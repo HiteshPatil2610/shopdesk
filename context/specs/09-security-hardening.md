@@ -9,14 +9,14 @@ Close the remaining gaps before real money and real customer names go into the s
 | Threat | Example | Mitigation (where) |
 |---|---|---|
 | Price tampering | Cashier edits the request to sell at ₹1 | Server computes prices (BR-5, spec 06/07) |
-| Privilege escalation | Cashier calls the admin API with their token | `azp` check per server + role check + no admin routes on pos_api (spec 02) |
+| Privilege escalation | Cashier calls the admin API with their token | `azp` check against the single web origin + fail-closed role ceiling on every admin route (spec 11) |
 | Account takeover / brute force | Guessing passwords | Clerk: password rules, attempt limits, bot protection. MFA for admins if the plan allows |
 | Leaked Clerk secret key | Attacker creates an admin user | Secret only in Vercel env (Production scope) + password manager. Rotate in Clerk if exposed. gitleaks hook |
 | Production secrets leaking into previews | A preview build reads live keys | Vercel env vars scoped to **Production** only. Preview gets dev values or nothing (spec 10) |
 | Overselling / race | Two counters, last unit | Row locks + CHECK (spec 07) |
 | Covering tracks | Staff deletes evidence | Append-only audit + trigger + restricted DB role (spec 05, here) |
 | XSS | Product name `<script>` | React escaping, no `dangerouslySetInnerHTML`, CSP (here) |
-| CSRF | Malicious page posts to the API | Bearer tokens, not cookies. CORS allow-list |
+| CSRF | Malicious page posts to the API | Bearer tokens, not cookies. Same-origin API with no CORS permission headers |
 | Forged webhooks | Fake `user.updated` to grant admin | svix signature verification + dedupe (spec 02) |
 | Malicious upload | Polyglot image / huge file | Pillow verify + re-encode + size cap before Cloudinary (spec 03) |
 | SQL injection | Search box | ORM parameterisation |
@@ -43,7 +43,7 @@ default-src 'self'; script-src 'self' https://clerk.<domain> https://challenges.
 
 ## 4. Release security checklist
 - [ ] All endpoints have `@require_role` or are on the public allowlist (test green)
-- [ ] Each API rejects tokens from the other app (`azp` test green)
+- [ ] Every admin route refuses a cashier; wrong `azp` is rejected in both areas
 - [ ] Clerk production: Access mode **Invite-only**, `metadata` session claim set, allowed origins = only the two production frontends
 - [ ] No `sk_test_` / `pk_test_` keys in production settings
 - [ ] No float in money paths

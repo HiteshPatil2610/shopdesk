@@ -66,7 +66,7 @@ def update(id):
 
 ### Database and migrations
 - Every schema change needs an Alembic migration, reviewed by hand. Never edit a migration that has already been applied. Add a new one instead.
-- Migrations are run **only** by `admin_api` (`flask --app admin_api db upgrade`).
+- Migrations are run through `shopdesk` (`flask --app shopdesk db upgrade`).
 - Constraints live in the DB too (CHECK, UNIQUE, FK, NOT NULL), not just in Python.
 - Names: tables plural `snake_case`, FKs `<entity>_id`, indexes `ix_<table>_<cols>`, checks `ck_<table>_<rule>`.
 
@@ -116,7 +116,7 @@ See [ui-context.md §6](ui-context.md#6-frontend-folder-conventions). Shared cod
 - Auth travels as `Authorization: Bearer` (no auth cookies), so there's no CSRF surface. Don't add cookie-based auth without updating spec 02.
 - Serverless (Vercel): no in-memory state between requests, no writes to local disk, and no heavy work at import time (create DB/SDK clients lazily). Any new migration must be **backward-compatible** (expand → contract), because code and migrations deploy independently.
 - Neon: the apps use the **pooled** URL, migrations use the **direct** URL. Don't rely on session state (`SET`, temp tables) across statements. Keep locks inside one transaction.
-- CORS: explicit origin list. Never `*` with credentials.
+- Same-origin API: emit no CORS permission headers. Authenticate bearer tokens and enforce role ceilings per area.
 - Dependencies pinned in `requirements.txt` / `package-lock.json`. Run `pip-audit` and `npm audit` before releases.
 
 ## 5. Git conventions

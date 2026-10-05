@@ -4,12 +4,12 @@ This folder is the **single source of truth** for what ShopDesk is, how it's bui
 
 ## What is ShopDesk?
 
-A product-management and billing system made of **two servers that share one PostgreSQL database**, running on managed cloud services (Vercel, Neon, Clerk, Cloudinary):
+A product-management and billing system made of **one app with two protected areas sharing one PostgreSQL database**, running on managed cloud services (Vercel, Neon, Clerk, Cloudinary):
 
-| Server | Who uses it | What it does |
+| Area | Who uses it | What it does |
 |---|---|---|
-| **Admin Console** (Server 1) | Owner / manager | Add and edit products (image, name, quantity, cost price), auto-calculate **Market Price (MP)** and **Selling Price (SP)** with a pricing formula, adjust stock, view sales, and read the **audit log** |
-| **Billing Counter** (Server 2) | Cashier | Product list, enter **customer name**, product code and quantity, price lines at MP, **Apply Discount** (switches to SP), then **Confirm** (stock goes down) or **Reject** |
+| **Admin Console** (`/admin`) | Owner / manager | Add and edit products (image, name, quantity, cost price), auto-calculate **Market Price (MP)** and **Selling Price (SP)** with a pricing formula, adjust stock, view sales, and read the **audit log** |
+| **Billing Counter** (`/pos`) | Cashier | Product list, enter **customer name**, product code and quantity, price lines at MP, **Apply Discount** (switches to SP), then **Confirm** (stock goes down) or **Reject** |
 
 ## Setting up your machine
 
@@ -55,6 +55,8 @@ Follow context/code-standards.md. Update progress-tracker.md when done.
 ```
 
 The root [CLAUDE.md](../CLAUDE.md) points Claude Code here automatically.
+
+Spec 11 replaces the original multi-app packaging: [11-single-server.md](specs/11-single-server.md). Historical feature specs describe their original implementation; use architecture and spec 11 for current paths.
 
 ## Keeping docs alive
 

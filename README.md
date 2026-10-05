@@ -1,11 +1,11 @@
 # ShopDesk
 
-Product management and billing for a small shop. There are **two servers sharing one database**:
+Product management and billing for a small shop. There is **one app with two protected areas sharing one database**:
 
 | App | Who | What |
 |---|---|---|
-| **Admin Console** (`admin_api` + `admin-web`) | Owner / manager | Products with images, automatic MP/SP pricing, stock, orders, audit log |
-| **Billing Counter** (`pos_api` + `pos-web`) | Cashier | Customer name, product code + quantity, discount (MP → SP), confirm or reject |
+| **Admin Console** (`/admin` + `/api/admin`) | Owner / manager | Products with images, automatic MP/SP pricing, stock, orders, audit log |
+| **Billing Counter** (`/pos` + `/api/pos`) | Cashier | Customer name, product code + quantity, discount (MP → SP), confirm or reject |
 
 **Stack:** Flask + SQLAlchemy (Python 3.12) · React 19 + Vite + Tailwind v4 (TypeScript) · Neon Postgres · Clerk · Cloudinary · Vercel.
 
@@ -18,23 +18,25 @@ First-time setup (accounts, `.env`, databases) is in **[SETUP_GUIDE.md](SETUP_GU
 cd backend
 py -3.12 -m venv venv
 .\venv\Scripts\pip install -r requirements-dev.txt
-.\venv\Scripts\flask --app admin_api db upgrade
+.\venv\Scripts\flask --app shopdesk db upgrade
 
 # frontend
 cd ..\frontend
-npm install
+npm ci
 
-# run everything (4 windows)
+# run API and web (background processes; logs in tmp/dev)
 cd ..
 .\scripts\dev.ps1
 ```
 
-| URL | |
+| URL | Purpose |
 |---|---|
-| http://localhost:5173 | Admin Console |
-| http://localhost:5174 | Billing Counter |
-| http://localhost:5001/api/health | Admin API health |
-| http://localhost:5002/api/health | POS API health |
+| http://localhost:5173 | One sign-in; role-based area landing |
+| http://localhost:5173/admin | Admin Console (owner/manager) |
+| http://localhost:5173/pos | Billing Counter (all staff) |
+| http://localhost:5001/api/health | Single API health |
+
+Manual deployment instructions: [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md). Preview and production deployment are owner actions, not yet verified.
 
 ## Checks
 

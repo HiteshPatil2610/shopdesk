@@ -33,5 +33,5 @@ jobs:
           DATABASE_URL_UNPOOLED: ${{ secrets.NEON_MIGRATE_URL }}
         run: |
           test -n "$DATABASE_URL"
-          python -m flask --app admin_api db upgrade
+          python -m flask --app shopdesk db upgrade
           python -m core.apply_grants ../scripts/security/database-roles.sql
