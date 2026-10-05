@@ -1,0 +1,125 @@
+# =====================================================================
+# ShopDesk .gitignore
+# Rule of thumb: secrets, generated files and local machine stuff stay out.
+# =====================================================================
+
+# ---------- Secrets & environment (NEVER commit) ----------
+.env
+.env.*
+!.env.example
+# Frontend: .env.development is committed (public values only); *.local files hold keys
+frontend/**/.env.local
+frontend/**/.env.*.local
+!frontend/**/.env.development
+!frontend/**/.env.production
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials*.json
+service-account*.json
+
+# ---------- Database files, dumps & backups ----------
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.backup
+backups/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+instance/
+
+# Testing / tooling caches
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+.hypothesis/
+
+# ---------- Node / Frontend ----------
+node_modules/
+frontend/**/dist/
+frontend/**/dist-ssr/
+*.tsbuildinfo
+.vite/
+.eslintcache
+.stylelintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+coverage/
+
+# Playwright (E2E, later)
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ---------- Deployment tooling (local state only) ----------
+.wrangler/
+.vercel/
+.render/
+
+# ---------- Local media / uploads (images live in Cloudinary) ----------
+media/
+uploads/
+
+# ---------- Logs & temp ----------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# ---------- Editors & OS ----------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- Claude Code (personal local settings) ----------
+.claude/settings.local.json
+
+# Local vulnerability audit caches/results
+.audit-cache/
+dependency-audit-*.json
+.tools/
+.vercel
+.env*
+
+# Local agent installations are not deployment inputs
+.agents/
+.claude/
+skills-lock.json
