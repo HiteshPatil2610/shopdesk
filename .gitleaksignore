@@ -1,0 +1,3 @@
+# Clerk publishable (public) key in a mocked setup_tools test, not a secret credential.
+# Ignore only this historical fingerprint; future findings still fail CI.
+95871d22b664b461b14a0f5df1d9dfefd643f900:backend/tests/unit/test_setup_tools.py:generic-api-key:7

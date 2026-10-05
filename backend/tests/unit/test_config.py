@@ -82,3 +82,79 @@ def test_missing_database_url_fails_fast(monkeypatch):
 
 def test_split_csv_strips_trailing_slashes():
     assert Settings.split_csv("http://a.com/, http://b.com") == ["http://a.com", "http://b.com"]
+
+
+def prod_values(pem):
+    return dict(
+        app_env="production",
+        database_url="postgresql://shopdesk_app:secret@host/db?sslmode=require",
+        clerk_secret_key="sk_live_demo",
+        clerk_jwt_key=pem,
+        cloudinary_url="cloudinary://key:secret@cloud",
+        ratelimit_storage_uri="rediss://default:secret@redis:6379",
+        authorized_parties="https://shop.example.com",
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("ratelimit_storage_uri", "memory://", "rediss"),
+        ("authorized_parties", "https://*.example.com", "exact HTTPS"),
+        ("authorized_parties", "http://localhost:5174", "exact HTTPS"),
+        ("database_url", "postgresql://neondb_owner:secret@host/db", "shopdesk_app"),
+        ("db_echo", True, "DB_ECHO"),
+        ("clerk_publishable_key", "pk_test_demo", "publishable"),
+        ("cloudinary_url", "cloudinary://<your_api_key>:<your_api_secret>@cloud", "placeholder"),
+    ],
+)
+def test_production_guards(rsa_public_pem, field, value, message):
+    values = prod_values(rsa_public_pem)
+    values[field] = value
+    with pytest.raises(ValidationError, match=message):
+        make(**values)
+
+
+def test_valid_production_config(rsa_public_pem):
+    assert make(**prod_values(rsa_public_pem)).app_env == "production"
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        "ADMIN_AUTHORIZED_PARTIES",
+        "POS_AUTHORIZED_PARTIES",
+        "ADMIN_CORS_ORIGINS",
+        "POS_CORS_ORIGINS",
+        "SHOPDESK_SERVER",
+        "VITE_API_BASE_URL",
+    ],
+)
+def test_legacy_names_raise_clear_error(monkeypatch, old):
+    monkeypatch.setenv(old, "old-value")
+    with pytest.raises(ValidationError, match=old + " was replaced"):
+        make()
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:5173",
+        "https://*.example.com",
+        "https://shop.example.com/path",
+        "https://user:pass@shop.example.com",
+        "",
+    ],
+)
+def test_production_requires_exact_app_origin(rsa_public_pem, origin):
+    values = prod_values(rsa_public_pem)
+    values["authorized_parties"] = origin
+    with pytest.raises(ValidationError, match="exact HTTPS"):
+        make(**values)
+
+
+def test_settings_validation_does_not_expose_credentials():
+    marker = "private-credential-regression-marker"
+    with pytest.raises(ValidationError) as error:
+        make(database_url=marker, clerk_secret_key=marker, ADMIN_CORS_ORIGINS="old")
+    assert marker not in str(error.value)

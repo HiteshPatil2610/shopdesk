@@ -63,3 +63,11 @@ describe('error helpers', () => {
     expect(apiErrorMessage(new Error('x'), 'fallback')).toBe('fallback');
   });
 });
+
+it.each([
+  ['/api/admin', '/products', '/api/admin/products'],
+  ['/api/pos', '/products', '/api/pos/products'],
+  ['/api/auth', '/me', '/api/auth/me'],
+])('keeps same-origin requests inside their selected area: %s', (baseURL, url, expected) => {
+  expect(createApiClient({ baseURL }).getUri({ url })).toBe(expected);
+});

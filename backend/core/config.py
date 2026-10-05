@@ -6,17 +6,18 @@ Every variable is documented in SETUP_GUIDE.md §7. When adding one, also add it
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
-from urllib.parse import urlsplit
+from typing import Literal, cast
+from urllib.parse import parse_qs, urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-PLACEHOLDER_MARKERS = ("CHANGE_ME", "API_KEY:API_SECRET", "ep-xxxx")
+PLACEHOLDER_MARKERS = ("change_me", "api_key:api_secret", "ep-xxxx", "<", ">", "your_api_")
 
 
 def normalize_db_url(url: str) -> str:
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # General
@@ -54,17 +56,12 @@ class Settings(BaseSettings):
     db_max_overflow: int = 3
     db_echo: bool = False
 
-    # Servers
-    admin_cors_origins: str = "http://localhost:5173"
-    pos_cors_origins: str = "http://localhost:5174"
-
     # Clerk (required in production; specs 02+ use them)
     clerk_publishable_key: str | None = None
     clerk_secret_key: str | None = None
     clerk_jwt_key: str | None = None
     clerk_webhook_signing_secret: str | None = None
-    admin_authorized_parties: str = "http://localhost:5173"
-    pos_authorized_parties: str = "http://localhost:5174"
+    authorized_parties: str = "http://localhost:5173"
 
     # Cloudinary
     cloudinary_url: str | None = None
@@ -80,6 +77,23 @@ class Settings(BaseSettings):
     shop_phone: str = ""
     shop_gstin: str = ""
     receipt_footer: str = "Thank you! Visit again"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_settings(cls, values: object) -> object:
+        legacy = {
+            "ADMIN_AUTHORIZED_PARTIES": "AUTHORIZED_PARTIES",
+            "POS_AUTHORIZED_PARTIES": "AUTHORIZED_PARTIES",
+            "ADMIN_CORS_ORIGINS": "same-origin requests (CORS removed)",
+            "POS_CORS_ORIGINS": "same-origin requests (CORS removed)",
+            "SHOPDESK_SERVER": "the single shopdesk app",
+            "VITE_API_BASE_URL": "same-origin API paths",
+        }
+        supplied = {str(k).upper() for k in values} if isinstance(values, dict) else set()
+        for old, replacement in legacy.items():
+            if old in supplied or old in os.environ:
+                raise ValueError(f"{old} was replaced by {replacement}; remove the old variable")
+        return values
 
     @field_validator("database_url", "database_url_unpooled", "test_database_url")
     @classmethod
@@ -127,8 +141,39 @@ class Settings(BaseSettings):
             if self.clerk_secret_key and self.clerk_secret_key.startswith("sk_test_"):
                 raise ValueError("Production must use a Clerk live key (sk_live_...)")
             for name, value in self.model_dump().items():
-                if isinstance(value, str) and any(m in value for m in PLACEHOLDER_MARKERS):
+                if isinstance(value, str) and any(m in value.lower() for m in PLACEHOLDER_MARKERS):
                     raise ValueError(f"{name.upper()} still contains a placeholder value")
+            if not (self.clerk_secret_key or "").startswith("sk_live_"):
+                raise ValueError("Production requires a Clerk live key")
+            if self.clerk_publishable_key and not self.clerk_publishable_key.startswith("pk_live_"):
+                raise ValueError("Production requires a Clerk live publishable key")
+            if not self.ratelimit_storage_uri.startswith("rediss://"):
+                raise ValueError("Production RATELIMIT_STORAGE_URI must use rediss://")
+            if self.db_echo:
+                raise ValueError("Production DB_ECHO must be false")
+            for name in ("authorized_parties",):
+                origins = self.split_csv(getattr(self, name))
+                if not origins or any(
+                    urlsplit(origin).scheme != "https"
+                    or not urlsplit(origin).hostname
+                    or urlsplit(origin).username is not None
+                    or urlsplit(origin).password is not None
+                    or "*" in origin
+                    or urlsplit(origin).path
+                    or urlsplit(origin).query
+                    or urlsplit(origin).fragment
+                    for origin in origins
+                ):
+                    raise ValueError(f"Production {name.upper()} requires exact HTTPS origins")
+            db_url = urlsplit(self.database_url)
+            if db_url.username != "shopdesk_app":
+                raise ValueError("Production DATABASE_URL must use shopdesk_app")
+            if parse_qs(db_url.query).get("sslmode", [""])[0] not in {
+                "require",
+                "verify-ca",
+                "verify-full",
+            }:
+                raise ValueError("Production DATABASE_URL must require TLS")
         return self
 
     # Derived values -------------------------------------------------------
@@ -153,5 +198,14 @@ class Settings(BaseSettings):
 
 
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
+def _environment_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # values come from the environment
+
+
+def get_settings() -> Settings:
+    """Use the factory's validated settings during requests and migrations."""
+    from flask import current_app, has_app_context
+
+    if has_app_context() and "SHOPDESK_SETTINGS" in current_app.config:
+        return cast(Settings, current_app.config["SHOPDESK_SETTINGS"])
+    return _environment_settings()

@@ -41,7 +41,7 @@ export function AuthGate({ appName, children }: Props) {
 
   const me = useQuery({
     queryKey: ['me'],
-    queryFn: async () => (await api.get<MeResponse>('/api/auth/me')).data,
+    queryFn: async () => (await api.get<MeResponse>('/me')).data,
     enabled: Boolean(isLoaded && isSignedIn),
     retry: (count, err) => !ACCESS_DENIED_CODES.has(apiErrorCode(err) ?? '') && count < 2,
     staleTime: 60_000,

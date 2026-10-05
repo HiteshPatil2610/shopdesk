@@ -13,14 +13,16 @@ pytestmark = pytest.mark.db
 def make_product(client, headers, **overrides):
     payload = {"name": "Steel bottle", "cost_price": "212", "quantity": "5"}
     payload.update(overrides)
-    return client.post("/api/products", headers=headers, json=payload).get_json()["product"]
+    return client.post("/api/admin/products", headers=headers, json=payload).get_json()["product"]
 
 
-def test_mp_change_writes_one_precise_update_row(dbs, admin_client, as_role):
+def test_mp_change_writes_one_precise_update_row(dbs, client, as_role):
     h = {**as_role("manager"), "X-Forwarded-For": "203.0.113.7", "User-Agent": "pytest-agent"}
-    p = make_product(admin_client, h, market_price="300", selling_price="250")
-    admin_client.patch(
-        f"/api/products/{p['id']}", headers=h, json={"version": p["version"], "market_price": "320"}
+    p = make_product(client, h, market_price="300", selling_price="250")
+    client.patch(
+        f"/api/admin/products/{p['id']}",
+        headers=h,
+        json={"version": p["version"], "market_price": "320"},
     )
     rows = dbs.scalars(select(AuditLog).where(AuditLog.action == "product.update")).all()
     assert len(rows) == 1
@@ -30,21 +32,21 @@ def test_mp_change_writes_one_precise_update_row(dbs, admin_client, as_role):
     assert str(row.ip_address) == "203.0.113.7" and row.user_agent == "pytest-agent"
 
 
-def test_rejected_update_writes_no_audit_row(dbs, admin_client, as_role):
+def test_rejected_update_writes_no_audit_row(dbs, client, as_role):
     h = as_role("manager")
-    p = make_product(admin_client, h)
+    p = make_product(client, h)
     before = dbs.scalar(select(func.count()).select_from(AuditLog))
-    res = admin_client.patch(
-        f"/api/products/{p['id']}", headers=h, json={"version": 1, "selling_price": "1"}
+    res = client.patch(
+        f"/api/admin/products/{p['id']}", headers=h, json={"version": 1, "selling_price": "1"}
     )
     assert res.status_code == 422  # BR-2: SP below cost
     assert dbs.scalar(select(func.count()).select_from(AuditLog)) == before
 
 
-def test_passwords_never_reach_the_audit_log(dbs, admin_client, as_role, fake_clerk):
+def test_passwords_never_reach_the_audit_log(dbs, client, as_role, fake_clerk):
     h = as_role("admin")
-    created = admin_client.post(
-        "/api/users",
+    created = client.post(
+        "/api/admin/users",
         headers=h,
         json={
             "username": "ravi",
@@ -53,8 +55,8 @@ def test_passwords_never_reach_the_audit_log(dbs, admin_client, as_role, fake_cl
             "password": "Very-secret-pass-1",
         },
     ).get_json()["user"]
-    admin_client.post(
-        f"/api/users/{created['id']}/reset-password",
+    client.post(
+        f"/api/admin/users/{created['id']}/reset-password",
         headers=h,
         json={"new_password": "Another-secret-2"},
     )

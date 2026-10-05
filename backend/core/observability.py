@@ -18,6 +18,9 @@ class _RequestContextFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.server = self.server
+        from shopdesk.areas import request_area
+
+        record.area = (request_area() or "system") if has_request_context() else "-"
         record.request_id = getattr(g, "request_id", "-") if has_request_context() else "-"
         return True
 
@@ -27,7 +30,7 @@ def configure_logging(server: str, level: str) -> None:
     handler.addFilter(_RequestContextFilter(server))
     handler.setFormatter(
         logging.Formatter(
-            "%(asctime)s %(levelname)s server=%(server)s request_id=%(request_id)s "
+            "%(asctime)s %(levelname)s app=%(server)s area=%(area)s request_id=%(request_id)s "
             "%(name)s: %(message)s"
         )
     )

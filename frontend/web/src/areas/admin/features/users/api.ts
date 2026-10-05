@@ -1,0 +1,85 @@
+import { useApi, type Role, type UserPublic } from '@shopdesk/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+export type NewUser = {
+  username: string;
+  full_name: string;
+  role: Role;
+  password: string;
+  email?: string;
+};
+export type AdminUser = UserPublic & {
+  clerk_user_id: string;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_in_clerk?: boolean;
+};
+
+const KEY = ['users'];
+
+export function useRevokeSessions() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<{ sessions_revoked: number }>(`/users/${id}/revoke-sessions`)).data,
+  });
+}
+
+export function useUsers() {
+  const api = useApi();
+  return useQuery({
+    queryKey: KEY,
+    queryFn: async () => (await api.post<{ items: AdminUser[] }>('/users/sync')).data.items,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
+function useInvalidate() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: KEY });
+}
+
+export function useCreateUser() {
+  const api = useApi();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (data: NewUser) => (await api.post('/users', data)).data,
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateUser() {
+  const api = useApi();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: number;
+      role?: Role;
+      full_name?: string;
+      email?: string;
+    }) => (await api.patch(`/users/${id}`, data)).data,
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetActive() {
+  const api = useApi();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: number; active: boolean }) =>
+      (await api.post(`/users/${id}/${active ? 'unban' : 'ban'}`)).data,
+    onSuccess: invalidate,
+  });
+}
+
+export function useResetPassword() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async ({ id, new_password }: { id: number; new_password: string }) =>
+      api.post(`/users/${id}/reset-password`, { new_password }),
+  });
+}

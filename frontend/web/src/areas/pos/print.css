@@ -1,0 +1,28 @@
+/* Receipt printing (80mm thermal paper): only the receipt is printed. */
+@media print {
+  /* The screen dialog scrolls; thermal receipts must remain printable in full. */
+  [role='dialog'] {
+    max-height: none !important;
+  }
+  .modal-body {
+    overflow: visible !important;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible !important;
+  }
+  .receipt-print {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm;
+    max-width: 80mm;
+  }
+}

@@ -32,7 +32,7 @@ export function HealthBadge({ isLoading, data, isError }: Props) {
   }
   return (
     <span className="rounded-full bg-success/10 px-3 py-1 text-sm font-medium text-success">
-      ✓ API OK · {data.server} v{data.version}
+      ✓ API OK · {data.app} v{data.version}
     </span>
   );
 }

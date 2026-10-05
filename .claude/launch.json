@@ -2,35 +2,30 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "admin-api",
+      "name": "api",
       "runtimeExecutable": "backend/venv/Scripts/flask.exe",
-      "runtimeArgs": ["--app", "admin_api", "run", "-p", "5001"],
+      "runtimeArgs": [
+        "--app",
+        "shopdesk",
+        "run",
+        "-p",
+        "5001"
+      ],
       "cwd": "backend",
       "port": 5001,
       "autoPort": false
     },
     {
-      "name": "pos-api",
-      "runtimeExecutable": "backend/venv/Scripts/flask.exe",
-      "runtimeArgs": ["--app", "pos_api", "run", "-p", "5002"],
-      "cwd": "backend",
-      "port": 5002,
-      "autoPort": false
-    },
-    {
-      "name": "admin-web",
+      "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "admin-web"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "web"
+      ],
       "cwd": "frontend",
       "port": 5173,
-      "autoPort": false
-    },
-    {
-      "name": "pos-web",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "pos-web"],
-      "cwd": "frontend",
-      "port": 5174,
       "autoPort": false
     }
   ]

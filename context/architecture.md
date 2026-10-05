@@ -1,68 +1,39 @@
 # Architecture — ShopDesk
 
-> **Platform:** managed cloud services. **Vercel** (both React apps + both Flask APIs as Python serverless functions), **Neon** (Postgres), **Clerk** (auth), **Cloudinary** (images), **GitHub** (code, CI, migrations, backups). Costs: a domain name (Clerk production mode needs one). Vercel's free **Hobby** plan is for non-commercial use only, so running the real shop on it needs **Vercel Pro** (see §12).
+Spec 11 approved: one Flask `shopdesk` app, area role ceilings at `/api/admin` and `/api/pos`, one lazy React web app, same-origin API with no CORS. ADR A14 supersedes A1/A11/A12; one Vercel project replaces four. Business services and migrations remain unchanged. Existing DATABASE_URL_UNPOOLED and CLERK_WEBHOOK_SIGNING_SECRET names and spec 09 required CSP hosts are retained. The tables below describe the approved single-project layout.
+
+> **Platform:** managed cloud services. **Vercel** (one React app + one Flask Python serverless function), **Neon** (Postgres), **Clerk** (auth), **Cloudinary** (images), **GitHub** (code, CI, migrations, backups). Costs: a domain name (Clerk production mode needs one). Vercel's free **Hobby** plan is for non-commercial use only, so running the real shop on it needs **Vercel Pro** (see §12).
 
 ## 1. High-level design
 
-```
-   Owner / Manager browser                         Cashier browser
-            │                                             │
-            ▼                                             ▼
-┌──────────────────────────┐                ┌──────────────────────────┐
-│ admin-web (React SPA)    │                │ pos-web (React SPA)      │
-│ Vercel (static)          │                │ Vercel (static)          │
-│ admin.<domain>           │                │ pos.<domain>             │
-└───────┬───────────┬──────┘                └──────┬───────────┬───────┘
-        │ sign-in   │ /api/*  Authorization: Bearer <Clerk session JWT>
-        ▼           │                              │           ▼ sign-in
-   ┌─────────────────────────── Clerk (auth) ───────────────────────────┐
-   │ users · passwords · sessions · roles in public_metadata · webhooks │
-   └────────────────────────────────────────────────────────────────────┘
-                    ▼                              ▼
-┌──────────────────────────┐                ┌──────────────────────────┐
-│ admin_api (Flask)        │                │ pos_api (Flask)          │
-│ SERVER 1 · Vercel fn     │                │ SERVER 2 · Vercel fn     │
-│ admin-api.<domain>       │                │ pos-api.<domain>         │
-│ products, pricing, stock,│                │ product lookup, cart     │
-│ users, audit, reports,   │                │ quote, confirm/reject,   │
-│ image upload, webhooks   │                │ receipt                  │
-└──────┬─────────────┬─────┘                └────────────┬─────────────┘
-       │ both import backend/core (models · services ·   │
-       │ pricing · audit · auth · db)                    │
-       │             ▼                                   │
-       │   ┌────────────────────┐                        │
-       │   │ Cloudinary         │◄── image URLs (CDN) ── browsers
-       │   │ product images     │
-       │   └────────────────────┘
-       └──────────────────┬──────────────────────────────┘
-                          ▼
-            ┌──────────────────────────────┐
-            │ Neon Postgres (serverless)   │
-            │ branch main → production     │
-            │ branch dev  → development    │
-            └──────────────────────────────┘
+```text
+Owner / manager / cashier browser
+  -> one Clerk sign-in at https://shop.<domain>
+  -> React web: /admin (owner/manager) or /pos (all staff)
+  -> same-origin /api/auth, /api/admin, /api/pos
+  -> one Flask shopdesk app -> shared core services -> Neon Postgres
+                                      -> Cloudinary image storage
+Clerk signed webhooks -> /api/webhooks/clerk
 ```
 
-**Key idea (unchanged):** two separate Flask applications that both import one shared Python package, `core`. All business rules live in `core`. Each server registers **only** the routes it needs. The POS server has no product-edit, user or audit endpoints at all.
+The server validates the bearer JWT signature and `azp` against `AUTHORIZED_PARTIES`. Each area blueprint has a role ceiling; admin excludes cashier, POS permits all three staff roles. Every route also retains its explicit role decorator. Missing area metadata fails closed, except shared `/api/auth/me`. Public routes are explicitly allow-listed. Cost/profit data is excluded from all POS serializers. Both areas retain their audit source (`admin` or `pos`).
 
-**On Vercel**, "two servers" means **two separate Vercel projects** (`shopdesk-admin-api`, `shopdesk-pos-api`). Each has its own domain, its own environment variables and secrets, and its own logs. Both projects deploy the same `backend/` folder, and the env var `SHOPDESK_SERVER=admin|pos` picks which Flask app the entry point builds (§3, ADR A12). A request to the POS project can never reach an admin route, because that app doesn't register them.
-
-**What moved to managed services:** passwords, login screens, sessions and brute-force protection → **Clerk**. Image storage, resizing and CDN → **Cloudinary**. Database hosting, backups/point-in-time restore and branching → **Neon**.
+One Vercel project serves static assets and a Python function. No CORS permission headers are emitted. Admin code is lazy-loaded only after an authorized area guard; ESLint and a build graph check enforce the POS boundary. A signed-in cashier cannot use admin endpoints even by bypassing the UI.
 
 ## 2. Tech stack
 
 | Layer | Choice | Why |
 |---|---|---|
 | Language (backend) | Python 3.12 | Your main language |
-| Web framework | Flask 3.x (app factory + blueprints) | Familiar. Two apps share code easily |
+| Web framework | Flask 3.x (app factory + blueprints) | One factory; area blueprints share core services |
 | ORM | SQLAlchemy 2.x (typed `Mapped[]`) | Row locking (`with_for_update`), mature |
 | DB driver | psycopg 3 (`psycopg[binary]`) | Works with Neon's pooler |
-| Migrations | Alembic via Flask-Migrate | **Run only from admin_api**, over Neon's **direct** (unpooled) connection |
+| Migrations | Alembic via Flask-Migrate | **Run through shopdesk**, over Neon's **direct** (unpooled) connection |
 | Validation | Pydantic v2 | Request/response schemas |
 | **Auth** | **Clerk.** Frontend: `@clerk/react` (v6+). Backend: JWT verified with PyJWT + Clerk's public key. User management via `clerk-backend-api` | Login UI, sessions, password security and bot protection are handled for us |
 | Webhooks | Clerk → `svix` signature verification | Keeps the local `users` mirror in sync and audits sign-ins |
 | Rate limiting | Flask-Limiter. Dev uses memory storage. Production uses **Upstash Redis** (free tier, via the Vercel Marketplace) | Serverless instances don't share memory, so limits need a shared store |
-| CORS | Flask-CORS, explicit origins | Frontends and APIs are on different subdomains |
+| API origin | Same-origin, no CORS permissions | One web origin |
 | **Images** | **Cloudinary** (`cloudinary` Python SDK) + Pillow for validation | Free CDN, on-the-fly thumbnails, nothing needs a disk (serverless functions have none) |
 | **Database** | **Neon Postgres** (free tier) | Postgres features we rely on: `FOR UPDATE`, CHECK, JSONB, triggers. Serverless, with branches for dev/prod |
 | Frontend | React 19 + Vite 8 + TypeScript 6 (ESLint 9; typescript-eslint doesn't support TS 7 yet) | |
@@ -73,86 +44,36 @@
 | Charts | Chart.js (react-chartjs-2) | |
 | Tests | pytest (+ local Postgres or a Neon test branch), Vitest, RTL, Playwright later | |
 | Lint/format | ruff + black, ESLint + Prettier | |
-| **Hosting** | **Vercel**: 4 projects from one repo. 2 static Vite sites + 2 Python serverless (Flask, WSGI) projects, functions in region `sin1` (Singapore, next to Neon) | Git deploys, preview URLs, free custom domains + HTTPS, cold starts in seconds rather than the ~1 min of sleeping containers |
+| **Hosting** | **Vercel**: 1 project from the repo root: static Vite web + Python serverless (Flask, WSGI) function, functions in region `sin1` (Singapore, next to Neon) | Git deploys, preview URLs, free custom domains + HTTPS, cold starts in seconds rather than the ~1 min of sleeping containers |
 | CI / migrations / backups | GitHub Actions | Tests on push, `flask db upgrade` on Neon `main` after tests pass, nightly `pg_dump` |
 
 ## 3. Repository layout
 
-```
+```text
 ShopDesk/
-├── CLAUDE.md
-├── README.md
-├── SETUP_GUIDE.md                # accounts, keys, .env, first run
-├── context/                      # ← these docs
-├── .env.example                  # backend env template (root .env used in dev)
-├── .github/workflows/
-│   ├── ci.yml                    # lint + tests on push/PR
-│   ├── migrate.yml               # after CI passes on main: flask db upgrade on Neon main
-│   └── backup.yml                # nightly pg_dump of Neon
-│
-├── backend/                      # Root Directory of BOTH Vercel API projects
-│   ├── vercel.json               # rewrites everything → api/index.py, region sin1
-│   ├── api/
-│   │   └── index.py              # entry: SHOPDESK_SERVER=admin → admin_api, =pos → pos_api
-│   ├── pyproject.toml
-│   ├── requirements.txt / requirements-dev.txt   # Vercel installs requirements.txt
-│   ├── core/                     # ★ shared package: imported by BOTH servers
-│   │   ├── config.py             # Settings from env (pydantic-settings)
-│   │   ├── db.py                 # engine (Neon-aware), session, Base
-│   │   ├── models/               # user, product, pricing, order, stock, audit
-│   │   ├── schemas/              # Pydantic
-│   │   ├── services/             # ★ business logic + transactions
-│   │   │   ├── auth_service.py   # resolve Clerk user → local user, role checks
-│   │   │   ├── user_service.py   # create/update users via Clerk Backend API + mirror
-│   │   │   ├── product_service.py  pricing_service.py  stock_service.py
-│   │   │   ├── order_service.py    audit_service.py    report_service.py
-│   │   ├── clerk_auth.py         # verify Clerk JWT (PyJWT, public key, azp)
-│   │   ├── pricing.py            # ★ pure pricing formula
-│   │   ├── money.py              # Decimal helpers
-│   │   ├── security.py           # require_role decorator, ActorContext
-│   │   ├── media.py              # validate (Pillow) + upload/delete (Cloudinary) + URL builder
-│   │   ├── errors.py
-│   │   └── cli.py                # promote-admin, seed, etc.
-│   ├── admin_api/                # ★ SERVER 1
-│   │   ├── __init__.py  wsgi.py
-│   │   └── routes/ auth.py products.py pricing.py stock.py orders.py audit.py
-│   │               users.py reports.py webhooks.py
-│   ├── pos_api/                  # ★ SERVER 2
-│   │   ├── __init__.py  wsgi.py
-│   │   └── routes/ auth.py products.py cart.py orders.py
-│   ├── migrations/
-│   └── tests/ unit/ services/ api/
-│
-└── frontend/
-    ├── packages/shared/          # api client (Clerk token), formatINR, types, UI atoms, Tailwind v4 theme.css
-    ├── admin-web/                # ★ React app for Server 1   (vercel.json: SPA rewrite + security headers)
-    └── pos-web/                  # ★ React app for Server 2   (vercel.json: SPA rewrite + security headers)
+  api/index.py                  # legacy compatibility entry (not deployed)
+  .python-version               # Python 3.12
+  vercel.json                   # root build, rewrites, HTML security headers
+  backend/
+    shopdesk/                   # create_app, typed area blueprints
+    admin_area/routes/          # /api/admin/*
+    pos_area/routes/            # /api/pos/*
+    core/                       # auth, settings, hardening, services, models
+    migrations/                 # unchanged database history
+    tests/                      # single-app fixtures and role sweeps
+  frontend/
+    package.json, package-lock.json
+    packages/shared/            # public DTOs, API/auth/query helpers
+    web/src/
+      router.tsx, main.tsx
+      landing/                  # area guards, landing, switcher
+      areas/admin/              # lazy admin pages
+      areas/pos/                # lazy billing pages and scoped print CSS
+  scripts/                      # two-process local launch, single-origin smoke
+  .github/workflows/            # CI, migrations, unchanged backups
 ```
 
-Frontend uses **npm workspaces**. There is no local `media/` folder: images live in Cloudinary.
-
-**`backend/api/index.py`** (the only Vercel-specific Python file):
-```python
-import os
-from core.config import settings  # validates env on cold start
-
-if os.environ.get("SHOPDESK_SERVER") == "admin":
-    from admin_api import create_app
-elif os.environ.get("SHOPDESK_SERVER") == "pos":
-    from pos_api import create_app
-else:
-    raise RuntimeError("SHOPDESK_SERVER must be 'admin' or 'pos'")
-
-app = create_app()   # Vercel's Python runtime serves this WSGI app
-```
-**`backend/vercel.json`**:
-```json
-{
-  "regions": ["sin1"],
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
-}
-```
-Local development doesn't use either file. `flask --app admin_api run` still works as before.
+No secrets belong in frontend source or `VITE_` values. `backend/api/index.py` remains a compatibility shim; the deployed backend service entry is `backend/wsgi.py`. `backend/pyproject.toml` loads pinned runtime dependencies from `backend/requirements.txt` and explicitly discovers the application packages. The frontend service root is `frontend/web`; installation runs in its parent workspace. Service routing preserves `/api/...`. There are no runtime bindings because only the browser calls the backend, through public same-origin paths.
 
 ## 4. Backend layering (strict)
 
@@ -276,7 +197,7 @@ products 1─* stock_movements
 
 ## 6. Critical flows
 
-### 6.1 Request authentication (both servers)
+### 6.1 Request authentication (all areas)
 ```
 browser: token = await clerk.getToken()          # short-lived (~60s) session JWT, auto-refreshed
          axios → Authorization: Bearer <token>
@@ -284,18 +205,18 @@ browser: token = await clerk.getToken()          # short-lived (~60s) session JW
 server:  clerk_auth.verify(token):
            RS256 signature with CLERK_JWT_KEY (no network call)
            exp / nbf (5s leeway)
-           azp ∈ <THIS_SERVER>_AUTHORIZED_PARTIES   # admin_api only accepts tokens minted for admin-web
+           azp ∈ AUTHORIZED_PARTIES   # exact single web origin
          claims.metadata.role (custom session claim "metadata": "{{user.public_metadata}}")
          auth_service.resolve_user(claims): find users by clerk_user_id;
            if missing → fetch from Clerk Backend API and insert (just-in-time sync)
            if not is_active → 401
-         @require_role(...) checks the role → 403 if not allowed
+         @require_role(...) checks endpoint role AND area ceiling → 403 if not allowed
          → ActorContext
 ```
 
 ### 6.2 Add product (Admin)
 ```
-POST /api/products (multipart)
+POST /api/admin/products (multipart)
   product_service.create(data, image, actor):
      public_id = media.upload_product_image(file)    # Pillow-validate → re-encode WebP → Cloudinary
      BEGIN
@@ -306,7 +227,7 @@ POST /api/products (multipart)
 ```
 
 ### 6.3 Billing: quote (POS, read-only)
-`POST /api/cart/quote {items:[{code,qty}], discount_applied}` → server prices, no writes.
+`POST /api/pos/cart/quote {items:[{code,qty}], discount_applied}` → server prices, no writes.
 
 Implemented in `core/services/order_service.py` with explicit cost-free quote schemas.
 One query loads products, duplicate codes merge, and quantities above 10,000 after merging
@@ -318,7 +239,7 @@ payment, saved rejection and confirmation belong to §6.4 and spec 07.
 
 ### 6.4 Billing: confirm (POS) — the most important transaction
 ```
-POST /api/orders/confirm {idempotency_key, customer_name, customer_phone?, payment_mode?,
+POST /api/pos/orders/confirm {idempotency_key, customer_name, customer_phone?, payment_mode?,
                           discount_applied, items:[{code, qty}]}
   existing order for idempotency_key → return it (200)
   BEGIN                                               # one transaction (works with Neon's pooler)
@@ -336,7 +257,7 @@ Saves `orders(status='rejected')` with snapshots. **No stock change.** Audit `or
 ### 6.6 Edit product (optimistic locking)
 `UPDATE … WHERE id=:id AND version=:v` → 0 rows → 409 VERSION_CONFLICT.
 
-### 6.7 Clerk webhook (admin_api)
+### 6.7 Clerk webhook (shared app)
 ```
 POST /api/webhooks/clerk     (public, but svix-signed)
   verify svix signature with CLERK_WEBHOOK_SIGNING_SECRET → else 400
@@ -352,52 +273,52 @@ Webhooks are a convenience, not a requirement. Just-in-time sync (6.1) keeps thi
 
 JSON over HTTPS. Base path `/api`. Error shape: `{ "error": { "code", "message", "details" } }`.
 
-### 7.1 Admin API (Server 1)
+### 7.1 Admin area
 | Method | Path | Role |
 |---|---|---|
 | GET | /api/health | public |
-| GET | /api/auth/me | mgr+ |
+| GET | /api/auth/me | all active staff; returns user + areas |
 | POST | /api/webhooks/clerk | svix signature |
-| GET/POST | /api/products | mgr+ |
-| GET/PATCH | /api/products/{id} | mgr+ |
-| POST/DELETE | /api/products/{id}/image | mgr+ |
-| POST | /api/products/{id}/deactivate · /activate · /recalculate-prices | mgr+ |
-| POST | /api/pricing/preview | mgr+ |
-| GET/PUT | /api/pricing/settings | GET mgr+, PUT admin |
-| POST | /api/pricing/apply | admin |
-| GET/POST | /api/categories | mgr+ |
-| POST | /api/stock/{product_id}/adjust | mgr+ |
-| GET | /api/stock/{product_id}/movements | mgr+ |
-| GET | /api/stock/verify | admin |
-| GET | /api/orders · /api/orders/{id} | mgr+ |
-| GET | /api/audit-logs · /{id} | mgr+ |
-| GET | /api/audit-logs/export.csv | admin |
-| GET | /api/reports/* | mgr+ |
-| GET/POST/PATCH | /api/users, /api/users/{id} | admin |
-| POST | /api/users/{id}/reset-password · /ban · /unban | admin |
+| GET/POST | /api/admin/products | mgr+ |
+| GET/PATCH | /api/admin/products/{id} | mgr+ |
+| POST/DELETE | /api/admin/products/{id}/image | mgr+ |
+| POST | /api/admin/products/{id}/deactivate · /activate · /recalculate-prices | mgr+ |
+| POST | /api/admin/pricing/preview | mgr+ |
+| GET/PUT | /api/admin/pricing/settings | GET mgr+, PUT admin |
+| POST | /api/admin/pricing/apply | admin |
+| GET/POST | /api/admin/categories | mgr+ |
+| POST | /api/admin/stock/{product_id}/adjust | mgr+ |
+| GET | /api/admin/stock/{product_id}/movements | mgr+ |
+| GET | /api/admin/stock/verify | admin |
+| GET | /api/admin/orders · /api/admin/orders/{id} | mgr+ |
+| GET | /api/admin/audit-logs · /{id} | mgr+ |
+| GET | /api/admin/audit-logs/export.csv | admin |
+| GET | /api/admin/reports/* | mgr+ |
+| GET/POST/PATCH | /api/admin/users, /api/admin/users/{id} | admin |
+| POST | /api/admin/users/{id}/reset-password · /ban · /unban · /revoke-sessions | admin |
 
-### 7.2 POS API (Server 2)
+### 7.2 POS area
 | Method | Path | Role |
 |---|---|---|
 | GET | /api/health | public |
-| GET | /api/auth/me | cashier+ |
-| GET | /api/products?search=&page= (no cost fields) | cashier+ |
-| GET | /api/products/lookup?code= | cashier+ |
-| POST | /api/cart/quote | cashier+ |
-| POST | /api/orders/confirm · /reject | cashier+ |
-| GET | /api/orders/{order_number}/receipt | cashier+ (own) / mgr+ |
-| GET | /api/orders/mine?date=today | cashier+ |
+| GET | /api/auth/me | all active staff; shared endpoint |
+| GET | /api/pos/products?search=&page= (no cost fields) | cashier+ |
+| GET | /api/pos/products/lookup?code= | cashier+ |
+| POST | /api/pos/cart/quote | cashier+ |
+| POST | /api/pos/orders/confirm · /reject | cashier+ |
+| GET | /api/pos/orders/{order_number}/receipt | cashier+ (own) / mgr+ |
+| GET | /api/pos/orders/mine?date=today | cashier+ |
 
 Image URLs in responses point straight at Cloudinary's CDN (`https://res.cloudinary.com/<cloud>/image/upload/c_fill,w_256,h_256,f_auto,q_auto/<public_id>`).
 
 ## 8. Auth design (summary; full detail in spec 02)
 
-- **One Clerk application** serves both frontends (same user pool). There's a *development* instance for local work and a *production* instance (which needs your own domain).
+- **One Clerk application** serves the single web app (same user pool). There's a *development* instance for local work and a *production* instance (which needs your own domain).
 - **Public sign-up disabled** (Clerk **Access mode = Invite-only**). The admin creates staff from the ShopDesk Users page, which calls the Clerk Backend API, or in the Clerk dashboard.
 - **Role** lives in Clerk `public_metadata.role`. It's copied into the session token via the custom claim `"metadata": "{{user.public_metadata}}"`, read as `metadata.role`, and mirrored into `users.role`.
-- **Server separation:** each API only accepts tokens whose `azp` (authorized party) is its own frontend's origin, **and** checks the role. A cashier can't use the admin API even with a valid Clerk session.
+- **Area separation:** the API accepts only the configured web origin in `azp`, and checks both the area's role ceiling and the endpoint's role. A cashier can't use the admin API even with a valid Clerk session.
 - Tokens are short-lived (~60 s) and refreshed by the Clerk SDK. Banning a user in Clerk cuts them off within about a minute, and the local `is_active` mirror cuts them off straight away once the webhook or the next sync arrives.
-- Tokens are sent as `Authorization: Bearer` (not cookies), so there's no CSRF exposure. CORS allows only the two frontend origins.
+- Tokens are sent as `Authorization: Bearer` (not cookies), so there's no CSRF exposure. No CORS permission headers are emitted.
 
 ## 9. Neon specifics
 
@@ -415,54 +336,55 @@ Image URLs in responses point straight at Cloudinary's CDN (`https://res.cloudin
 
 ## 10. Configuration
 
-The backend reads env vars, from the root `.env` in development or each Vercel API project's *Environment Variables* in production. The frontends read `VITE_*` vars at build time (each Vercel frontend project's settings in production). **Full list: [SETUP_GUIDE.md §7–8](../SETUP_GUIDE.md).** Key ones:
+Backend settings come from root `.env` locally and the single Vercel project's environment in deployment. Frontend reads only `VITE_CLERK_PUBLISHABLE_KEY` at build time. Full reference: [SETUP_GUIDE.md](../SETUP_GUIDE.md).
 
-| Var | Used by |
+| Variable | Purpose |
 |---|---|
-| DATABASE_URL, DATABASE_URL_UNPOOLED, TEST_DATABASE_URL | backend / migrations / pytest |
-| CLERK_SECRET_KEY, CLERK_JWT_KEY, CLERK_WEBHOOK_SIGNING_SECRET | backend |
-| ADMIN_AUTHORIZED_PARTIES, POS_AUTHORIZED_PARTIES | admin_api / pos_api |
-| ADMIN_CORS_ORIGINS, POS_CORS_ORIGINS | admin_api / pos_api |
-| CLOUDINARY_URL, CLOUDINARY_FOLDER | backend |
-| SHOPDESK_SERVER (`admin` / `pos`) | Vercel API projects only |
-| RATELIMIT_STORAGE_URI (Upstash `rediss://…` in prod) | backend |
-| VITE_CLERK_PUBLISHABLE_KEY, VITE_API_BASE_URL | frontends |
+| DATABASE_URL | pooled runtime URL; production restricted shopdesk_app + TLS |
+| DATABASE_URL_UNPOOLED | direct migration URL; not supplied to running production app |
+| TEST_DATABASE_URL | disposable database ending in _test |
+| CLERK_SECRET_KEY, CLERK_JWT_KEY, CLERK_WEBHOOK_SIGNING_SECRET | backend identity and signed webhook verification |
+| AUTHORIZED_PARTIES | exact allowed web origins; production HTTPS only |
+| CLOUDINARY_URL, CLOUDINARY_FOLDER, MAX_UPLOAD_MB | image storage; maximum 4 MB |
+| RATELIMIT_STORAGE_URI | production TLS Redis; no memory fallback |
+| VITE_CLERK_PUBLISHABLE_KEY | public Clerk key, production pk_live only |
 
-When you add a variable, add it to `.env.example`, `core/config.py` and SETUP_GUIDE in the same change.
+Legacy ADMIN_/POS_AUTHORIZED_PARTIES, ADMIN_/POS_CORS_ORIGINS, SHOPDESK_SERVER and VITE_API_BASE_URL cause clear startup/build errors. Input values are omitted from validation error text.
+
+Separate limits: POS quote 300/min, admin and POS writes 120/min in distinct buckets, admin CSV 5/min, shared webhook 60/min, anonymous/invalid auth/me 60/min per direct IP. Authenticated auth/me is exempt. JSON requests are capped at 256 KB; only multipart image creation/replacement routes allow up to 4 MB. API headers remain strict JSON CSP and no-store; HTML gets the separate root web CSP including exact Clerk hosts, fraud/challenge hosts, fonts and Cloudinary.
 
 ## 11. Environments and ports
 
-| | Local development | Production |
+| Piece | Local | Deployment |
 |---|---|---|
-| admin-web | http://localhost:5173 (Vite, proxies `/api` → :5001) | https://admin.\<domain\> (Vercel project `shopdesk-admin-web`) |
-| pos-web | http://localhost:5174 (Vite, proxies `/api` → :5002) | https://pos.\<domain\> (Vercel project `shopdesk-pos-web`) |
-| admin_api | http://localhost:5001 | https://admin-api.\<domain\> (Vercel project `shopdesk-admin-api`) |
-| pos_api | http://localhost:5002 | https://pos-api.\<domain\> (Vercel project `shopdesk-pos-api`) |
-| Database | Neon branch `dev` | Neon branch `main` |
-| Clerk | Development instance (`pk_test_…`) | Production instance (`pk_live_…`) |
-| Cloudinary folder | `shopdesk-dev/products` | `shopdesk/products` |
-| Tests | Neon database `shopdesk_test` (or local Postgres) | GitHub Actions Postgres service |
+| web | localhost:5173, /admin and /pos | one https://shop.<domain> |
+| API | localhost:5001, proxied through Vite /api | same origin /api/* |
+| Database | Neon dev | Neon main production; dev for Preview |
+| Clerk | development instance | production live instance; dev for Preview |
+| Tests | isolated shopdesk_test | CI PostgreSQL service |
+
+Run `flask --app shopdesk run -p 5001` and `npm run dev -w web` from backend/frontend respectively. Preview mixed-runtime verification and production setup are manual owner actions in [MANUAL_DEPLOYMENT.md](../MANUAL_DEPLOYMENT.md).
 
 ## 12. Platform constraints (Vercel + free tiers) and how the design handles them
 
 | Constraint | Effect | Mitigation |
 |---|---|---|
 | **Vercel Hobby (free) is for personal, non-commercial use only** | Running a real shop on Hobby breaks Vercel's terms | Build and test on Hobby. Before real sales, move the team to **Vercel Pro** (~$20/month per member, check pricing) |
-| Functions are **serverless**: instances start and stop on demand | First request after idle has a **cold start of ~1–3 s** (Python + imports) | Keep imports lean at module level. pos-web sends one `/api/health` "pre-warm" request when the billing screen loads. No long-running state in memory |
+| Functions are **serverless**: instances start and stop on demand | First request after idle has a **cold start of ~1–3 s** (Python + imports) | Keep imports lean at module level. The POS area sends one `/api/health` "pre-warm" request when the billing screen loads. No long-running state in memory |
 | **Request body limit ~4.5 MB** per function call | Large image uploads would fail before reaching Flask | Browser resizes images to ≤ 1024 px WebP before uploading. Server limit `MAX_UPLOAD_MB=4` (spec 03) |
 | No persistent disk | Uploaded files would vanish | Images go to Cloudinary |
 | Memory isn't shared between instances | In-memory rate limits don't work | Upstash Redis (free) as the Flask-Limiter store in production |
 | No "start command" to run migrations | Schema changes need another trigger | GitHub Actions `migrate.yml` runs `flask db upgrade` on Neon `main` after CI passes. **Migrations must be backward-compatible** (expand → deploy → contract), because Vercel may deploy the code before or after the migration finishes |
 | Function max duration / runtime log retention are limited on Hobby | Long jobs fail. Logs disappear quickly | All requests are short (< 2 s). The **audit log in Postgres** is the permanent record, not Vercel logs |
 | Neon compute scales to zero | ~sub-second wake on first query | `pool_pre_ping`, small pool |
-| Clerk production instance needs a custom domain | Can't use `*.vercel.app` for production sign-in | Buy a cheap domain and attach subdomains to the 4 Vercel projects |
+| Clerk production instance needs a custom domain | Can't use `*.vercel.app` for production sign-in | Buy a cheap domain and attach one app domain to the Vercel project |
 | Limits change over time | — | Check each pricing page before go-live (SETUP_GUIDE §2) |
 
 ## 13. Architecture decisions (ADR summary)
 
 | # | Decision | Alternatives | Reason |
 |---|---|---|---|
-| A1 | Two Flask apps + shared `core` | One app | Product requirement. Smaller attack surface at the counter |
+| A1 (superseded by A14) | Two Flask apps + shared `core` | One app | Product requirement. Smaller attack surface at the counter |
 | A2 | Postgres (Neon) | SQLite, MySQL | Concurrent writers, `FOR UPDATE`, CHECK, JSONB, triggers |
 | A3 | Server-computed prices | Client totals | Security (BR-5) |
 | A4 | **Clerk** for identity, local `users` mirror for FKs/audit | Self-built JWT auth | Less security-critical code to write. Login UI and bot protection included. Free tier covers a shop |
@@ -470,8 +392,10 @@ When you add a variable, add it to `.env.example`, `core/config.py` and SETUP_GU
 | A6 | Stored MP/SP + manual flags, snapshots on orders | Compute on the fly | Stable, editable prices and correct history |
 | A7 | **Cloudinary** for images | Local disk, S3/R2, Vercel Blob | Serverless has no persistent disk. Cloudinary gives CDN + thumbnails for free |
 | A8 | **Neon** pooled URL for apps, direct URL for migrations | Direct only | Serverless-friendly connection handling |
-| A9 | **Vercel** for all 4 deployables (owner's choice, 2026-10-04) | Render + Cloudflare Pages (earlier plan), Cloud Run | One platform, git deploys, seconds-not-minutes cold starts. Trade-off: Hobby is non-commercial, so Pro is needed for the live shop |
-| A10 | Bearer tokens (Clerk) instead of cookies | Cookie sessions | Cross-subdomain APIs with no CSRF to handle |
-| A11 | `azp` + role checks per server | Separate Clerk apps | One user pool. Still a hard boundary between servers |
-| A12 | Two Vercel API projects share Root Directory `backend/`. `SHOPDESK_SERVER` selects the app in `api/index.py` | One project with both apps, or separate root folders | Keeps the "two servers" separation (own domain, env, secrets, logs) without copying code, and `core/` stays inside the deployed folder |
+| A9 | **Vercel** for 1 project (owner's choice, 2026-10-04) | Render + Cloudflare Pages (earlier plan), Cloud Run | One platform, git deploys, seconds-not-minutes cold starts. Trade-off: Hobby is non-commercial, so Pro is needed for the live shop |
+| A10 | Bearer tokens (Clerk) instead of cookies | Cookie sessions | Bearer-authenticated same-origin APIs; no cookie-based CSRF |
+| A11 (superseded by A14) | `azp` + role checks per server | Separate Clerk apps | One user pool. Still a hard boundary between servers |
+| A12 (superseded by A14) | Two Vercel API projects share Root Directory `backend/`. `SHOPDESK_SERVER` selects the app in `api/index.py` | One project with both apps, or separate root folders | Keeps the "two servers" separation (own domain, env, secrets, logs) without copying code, and `core/` stays inside the deployed folder |
 | A13 | Migrations from GitHub Actions, backward-compatible only | Migrating in a start command / build step | Vercel has no start command. CI already holds the tests, and the migration should run only after they pass |
+
+| A14 | One Flask shopdesk app + lazy React web, protected areas, one Vercel project | Previous four-project packaging | Owner approved 2026-10-05. Simplifies deployment; area role ceilings, endpoint guards, role sweeps and build boundary preserve security. Supersedes A1/A11/A12; no business or DB changes |

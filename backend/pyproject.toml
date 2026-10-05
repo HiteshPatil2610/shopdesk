@@ -2,6 +2,20 @@
 name = "shopdesk-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
+dynamic = ["dependencies"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["wsgi"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["core*", "shopdesk*", "admin_area*", "pos_area*"]
 
 [tool.black]
 line-length = 100
@@ -21,7 +35,7 @@ ignore = ["E501"]  # black owns line length
 "tests/**" = ["S101", "S105", "S106", "S311"]  # asserts, fake secrets, random data
 
 [tool.ruff.lint.isort]
-known-first-party = ["core", "admin_api", "pos_api"]
+known-first-party = ["core", "shopdesk", "admin_area", "pos_area"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -41,5 +55,5 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["core", "admin_api", "pos_api"]
+source = ["core", "shopdesk", "admin_area", "pos_area"]
 omit = ["*/migrations/*"]

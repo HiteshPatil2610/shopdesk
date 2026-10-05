@@ -22,9 +22,11 @@ def test_expired_token_is_rejected(make_token, rsa_public_pem):
 
 
 def test_token_for_other_app_is_rejected(make_token, rsa_public_pem):
-    """AU-3: a token minted for pos-web must not work on the admin API."""
+    """AU-3: a token minted for a foreign origin must not work on ShopDesk."""
     with pytest.raises(AuthError) as exc:
-        verify_session_token(make_token(azp=POS_ORIGIN), rsa_public_pem, [ADMIN_ORIGIN])
+        verify_session_token(
+            make_token(azp="https://other.example"), rsa_public_pem, [ADMIN_ORIGIN]
+        )
     assert exc.value.code == "TOKEN_WRONG_APP"
 
 

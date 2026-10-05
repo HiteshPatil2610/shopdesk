@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.db, pytest.mark.concurrency]
 
 
 def test_last_unit_sold_once_under_concurrency(test_db, settings, make_token):
-    from pos_api import create_app
+    from shopdesk import create_app
 
     app = create_app(settings)
     tag = uuid.uuid4().hex[:6]
@@ -53,7 +53,7 @@ def test_last_unit_sold_once_under_concurrency(test_db, settings, make_token):
         client = app.test_client()
         barrier.wait()
         res = client.post(
-            "/api/orders/confirm",
+            "/api/pos/orders/confirm",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "idempotency_key": str(uuid.uuid4()),

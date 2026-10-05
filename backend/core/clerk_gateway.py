@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from core.config import get_settings
-from core.errors import AppError, BusinessRuleError, ConflictError
+from core.errors import AppError, BusinessRuleError, ConflictError, NotFoundError
 
 
 @dataclass(frozen=True)
@@ -25,14 +25,17 @@ class ClerkUserInfo:
 
 class ClerkGateway(Protocol):
     def get_user(self, user_id: str) -> ClerkUserInfo: ...
+    def list_users(self) -> list[ClerkUserInfo]: ...
     def create_user(
-        self, *, username: str, password: str, full_name: str, role: str
+        self, *, username: str, password: str, full_name: str, role: str, email: str | None = None
     ) -> ClerkUserInfo: ...
     def set_role(self, user_id: str, role: str) -> None: ...
     def set_name(self, user_id: str, full_name: str) -> None: ...
+    def set_email(self, user_id: str, email: str) -> None: ...
     def reset_password(self, user_id: str, password: str) -> None: ...
     def ban(self, user_id: str) -> None: ...
     def unban(self, user_id: str) -> None: ...
+    def revoke_sessions(self, user_id: str) -> int: ...
 
 
 def split_name(full_name: str) -> tuple[str, str | None]:
@@ -73,6 +76,11 @@ class SdkClerkGateway:
         try:
             return fn(**kwargs)
         except models.ClerkErrors as exc:
+            if exc.status_code == 404:
+                raise NotFoundError(
+                    "This Clerk account no longer exists. Refresh the user list.",
+                    code="CLERK_USER_NOT_FOUND",
+                ) from exc
             errors = getattr(exc.data, "errors", None) or []
             first = errors[0] if errors else None
             code = getattr(first, "code", "") or ""
@@ -82,11 +90,16 @@ class SdkClerkGateway:
                 or "Clerk rejected the request"
             )
             if "exists" in code or "taken" in code:
-                raise ConflictError(message, code="USERNAME_TAKEN") from exc
+                raise ConflictError(message, code="IDENTIFIER_TAKEN") from exc
             if "password" in code:
                 raise BusinessRuleError(message, code="WEAK_PASSWORD") from exc
             raise BusinessRuleError(message, code="CLERK_REJECTED") from exc
         except models.SDKError as exc:
+            if exc.status_code == 404:
+                raise NotFoundError(
+                    "This Clerk account no longer exists. Refresh the user list.",
+                    code="CLERK_USER_NOT_FOUND",
+                ) from exc
             raise AppError(
                 "Could not reach the sign-in service. Try again.",
                 code="CLERK_UNAVAILABLE",
@@ -99,8 +112,22 @@ class SdkClerkGateway:
     def get_user(self, user_id: str) -> ClerkUserInfo:
         return self._info(self._call(self._clerk.users.get, user_id=user_id))
 
+    def list_users(self) -> list[ClerkUserInfo]:
+        users: list[ClerkUserInfo] = []
+        offset = 0
+        while True:
+            rows = self._call(
+                self._clerk.users.list,
+                request={"limit": 100, "offset": offset, "order_by": "+created_at"},
+                timeout_ms=3000,
+            )
+            users.extend(self._info(row) for row in rows)
+            if len(rows) < 100:
+                return users
+            offset += len(rows)
+
     def create_user(
-        self, *, username: str, password: str, full_name: str, role: str
+        self, *, username: str, password: str, full_name: str, role: str, email: str | None = None
     ) -> ClerkUserInfo:
         first, last = split_name(full_name)
         user = self._call(
@@ -110,6 +137,7 @@ class SdkClerkGateway:
             first_name=first,
             last_name=last,
             public_metadata={"role": role},
+            **({"email_address": [email]} if email else {}),
         )
         return self._info(user)
 
@@ -121,6 +149,30 @@ class SdkClerkGateway:
     def set_name(self, user_id: str, full_name: str) -> None:
         first, last = split_name(full_name)
         self._call(self._clerk.users.update, user_id=user_id, first_name=first, last_name=last)
+
+    def set_email(self, user_id: str, email: str) -> None:
+        """Admin-attested primary email; retain other addresses and do not send notifications."""
+        user = self._call(self._clerk.users.get, user_id=user_id)
+        for address in user.email_addresses:
+            if address.email_address.lower() == email.lower():
+                self._call(
+                    self._clerk.email_addresses.update,
+                    email_address_id=address.id,
+                    verified=True,
+                    primary=True,
+                    notify_primary_email_address_changed=False,
+                )
+                return
+        self._call(
+            self._clerk.email_addresses.create,
+            request={
+                "user_id": user_id,
+                "email_address": email,
+                "verified": True,
+                "primary": True,
+                "notify_primary_email_address_changed": False,
+            },
+        )
 
     def reset_password(self, user_id: str, password: str) -> None:
         self._call(
@@ -135,6 +187,27 @@ class SdkClerkGateway:
 
     def unban(self, user_id: str) -> None:
         self._call(self._clerk.users.unban, user_id=user_id)
+
+    def revoke_sessions(self, user_id: str) -> int:
+        # Collect before revoking: changing active sessions while paginating would skip rows.
+        ids: list[str] = []
+        offset = 0
+        while True:
+            rows = self._call(
+                self._clerk.sessions.list,
+                user_id=user_id,
+                status="active",
+                paginated=True,
+                limit=100,
+                offset=offset,
+            )
+            ids.extend(row.id for row in rows)
+            if len(rows) < 100:
+                break
+            offset += len(rows)
+        for session_id in ids:
+            self._call(self._clerk.sessions.revoke, session_id=session_id)
+        return len(ids)
 
 
 _gateway: ClerkGateway | None = None

@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Role = Literal["admin", "manager", "cashier"]
+EMAIL_PATTERN = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
 
 
 class _Strict(BaseModel):
@@ -16,6 +17,7 @@ class UserCreate(_Strict):
     full_name: str = Field(min_length=2, max_length=120)
     role: Role
     password: str = Field(min_length=10, max_length=128)
+    email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
 
     @field_validator("username")
     @classmethod
@@ -34,6 +36,7 @@ class UserCreate(_Strict):
 class UserUpdate(_Strict):
     full_name: str | None = Field(default=None, min_length=2, max_length=120)
     role: Role | None = None
+    email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
 
 
 class PasswordReset(_Strict):

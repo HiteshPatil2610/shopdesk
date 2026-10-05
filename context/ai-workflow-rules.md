@@ -9,6 +9,8 @@ Rules for any AI coding assistant (Claude Code, Cursor, Copilot, …) working on
 3. If the spec is unclear, conflicts with another doc, or is missing a decision, **stop and ask**. Don't guess on business rules, money or security.
 4. For anything bigger than a small fix, write a short plan first: files to touch, approach, tests. Wait for approval if the user asked to review plans.
 
+Current packaging (spec 11): one Flask app, two guarded areas, one web app. Every admin route requires the admin area ceiling; cashier response schemas must exclude cost/profit. These requirements supplement H1–H14.
+
 ## 2. While working
 
 - **One spec task at a time.** Don't start the next task or "improve" unrelated code in the same change.

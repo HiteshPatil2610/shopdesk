@@ -7,7 +7,7 @@ export type ApiErrorBody = {
 
 export type HealthResponse = {
   status: 'ok';
-  server: 'admin' | 'pos';
+  app: 'shopdesk';
   db: 'ok' | 'error';
   version: string;
 };
@@ -24,13 +24,13 @@ export type UserPublic = {
   last_seen_at: string | null;
 };
 
-export type MeResponse = { user: UserPublic; server: 'admin' | 'pos' };
+export type MeResponse = { user: UserPublic; areas: ('admin' | 'pos')[] };
 
 /** Clerk's getToken; `skipCache` forces a fresh token after a 401. */
 export type GetToken = (opts?: { skipCache?: boolean }) => Promise<string | null>;
 
 type ApiClientOptions = {
-  /** Empty string = same origin (Vite proxy in dev). Production: the API's https URL. */
+  /** Same-origin base path: /api/auth, /api/admin or /api/pos. */
   baseURL: string;
   getToken?: GetToken;
 };
