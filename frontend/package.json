@@ -4,18 +4,16 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "admin-web",
-    "pos-web"
+    "web"
   ],
   "scripts": {
-    "dev:admin": "npm run dev -w admin-web",
-    "dev:pos": "npm run dev -w pos-web",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev -w web"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

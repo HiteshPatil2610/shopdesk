@@ -2,7 +2,7 @@
 
 > Update this file at the **end of every work session**. It's the first thing read at the start of the next one.
 
-**Current phase:** Spec 11 single-app refactor on feat/single-server. Group A built and verified; groups B/C next. Spec 09 baseline e7137ae preserved. No deployment.
+**Current phase:** Spec 11 single-app refactor on feat/single-server. Groups A/B built and verified; group C next. Spec 09 baseline e7137ae preserved. No deployment.
 **Last updated:** 2026-10-05
 
 ## Status overview
@@ -106,6 +106,7 @@ Owner will perform deployment manually. Follow [MANUAL_DEPLOYMENT.md](../MANUAL_
 
 | Date | Who | What was done | Next |
 |---|---|---|---|
+| 2026-10-05 | Codex | Spec 11 group B: moved both UI trees with git mv into web/areas, one router with lazy area guards, last-area landing, header switcher, same-origin API paths, POS-only print/hotkey lifecycle, session-scoped query cache, cross-area import lint and static chunk build checks. Backend 292 passed; frontend 80 passed; lint/types/build pass. Offline isolated npm ci succeeded; all dependency versions retained. | Group C tooling/CI/docs and owner Preview handoff |
 | 2026-10-05 | Codex | Spec 11 group A: single shopdesk factory, renamed area packages, prefixed routes, area role ceilings/audit sources, one authorized origin setting, no CORS, per-area limits, bounded streamed bodies, root Python/Vercel packaging. Full backend 292 tests pass; Ruff, Black check, mypy pass. Existing frontend 67 tests, lint/type/build pass. Every admin method refuses cashier; every POS route has a successful cost-free response case; real >3 MB PNG upload accepted with fake store. Services/pricing/models/migrations diff is empty against e7137ae. | Group B frontend merge, then group C tooling/docs; production unchanged |
 | 2026-10-05 | Codex | Spec 09 code: API/web headers + exact production CSP/live-key build guard, shared Redis quotas, audited sign-out-all-devices, production HTTPS/TLS/role/key/Redis guards, pixel cap + malformed/polyglot upload tests, XSS confirmation test. Prepared restricted role SQL, migration/grants and private-repo nightly backup workflows, dependency audits + Dependabot + gitleaks. 260 backend tests passed in full rerun; 41 final unit checks passed; 67 frontend tests + 1 build-guard test; lint/format/types and both builds pass. Python/npm runtime audits have zero findings; gitleaks history clean after one exact public-fixture false-positive exclusion. Manual deployment guide written. Browser reached Clerk sign-in; signed-in Users UI tested with component mocks. No production changes or deployment | Owner: follow MANUAL_DEPLOYMENT.md, verify DB grants/Clerk/CSP/Redis, run backup and scratch restore drill, then sign off spec 09 |
 | 2026-10-04 | Codex | Built spec 05 audit viewer/API, URL-synced IST filters, paginated table, detail diffs, admin-only streamed CSV with formula protection and export event, product audit history tab, recursive secret redaction. Reused spec 02 immutable table; no migration. Browser verified existing rows/details/empty state and export event; download-path observation timed out. Full backend suite: 188 passed; frontend: 51 passed; lint/format/type checks and both production builds passed. Added write-audit and timezone regression tests. Ports/access unchanged | Spec 06 POS billing; order audit integration in spec 07 |

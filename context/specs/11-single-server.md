@@ -300,11 +300,11 @@ Each step keeps all tests green before moving on. Commit after each group.
 - [x] 7. Tests: one `app` fixture; update URLs; rewrite `test_route_security` for areas (§11); delete the "two apps" fixtures.
 
 **B. Frontend**
-- [ ] 8. Create `frontend/web` (Vite, TS, Tailwind, Vitest config copied from admin-web); `git mv` admin-web/src → `web/src/areas/admin`, pos-web/src → `web/src/areas/pos`.
-- [ ] 9. New `router.tsx` with lazy areas, `AreaGuard`, landing redirect, area switcher, not-found page.
-- [ ] 10. API client: base paths `/api/admin`, `/api/pos`, `/api/auth`; drop `VITE_API_BASE_URL`; Vite dev proxy.
-- [ ] 11. ESLint `no-restricted-imports` between `areas/admin` and `areas/pos`; remove `admin-web`/`pos-web` workspaces; update `package.json` scripts.
-- [ ] 12. Move/adjust the 66 frontend tests; add guard/redirect tests (§11).
+- [x] 8. Create `frontend/web` (Vite, TS, Tailwind, Vitest config copied from admin-web); `git mv` admin-web/src → `web/src/areas/admin`, pos-web/src → `web/src/areas/pos`.
+- [x] 9. New `router.tsx` with lazy areas, `AreaGuard`, landing redirect, area switcher, not-found page.
+- [x] 10. API client: base paths `/api/admin`, `/api/pos`, `/api/auth`; drop `VITE_API_BASE_URL`; Vite dev proxy.
+- [x] 11. ESLint `no-restricted-imports` between `areas/admin` and `areas/pos`; remove `admin-web`/`pos-web` workspaces; update `package.json` scripts.
+- [x] 12. Move/adjust the 66 frontend tests; add guard/redirect tests (§11).
 
 **C. Tooling, CI and docs**
 - [ ] 13. `.claude/launch.json` (2 configs), `scripts/dev.ps1`, `scripts/smoke.ps1` (one base URL), `configure-web-headers.mjs`, `check-production-env.mjs`.

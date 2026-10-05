@@ -50,4 +50,22 @@ export default tseslint.config(
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
+  {
+    files: ['web/src/areas/admin/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['**/areas/pos', '**/areas/pos/**', '**/pos', '**/pos/**'] },
+      ],
+    },
+  },
+  {
+    files: ['web/src/areas/pos/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['**/areas/admin', '**/areas/admin/**', '**/admin', '**/admin/**'] },
+      ],
+    },
+  },
 );
