@@ -92,10 +92,7 @@ def prod_values(pem):
         clerk_jwt_key=pem,
         cloudinary_url="cloudinary://key:secret@cloud",
         ratelimit_storage_uri="rediss://default:secret@redis:6379",
-        admin_cors_origins="https://admin.example.com",
-        pos_cors_origins="https://pos.example.com",
-        admin_authorized_parties="https://admin.example.com",
-        pos_authorized_parties="https://pos.example.com",
+        authorized_parties="https://shop.example.com",
     )
 
 
@@ -103,8 +100,8 @@ def prod_values(pem):
     ("field", "value", "message"),
     [
         ("ratelimit_storage_uri", "memory://", "rediss"),
-        ("admin_authorized_parties", "https://*.example.com", "exact HTTPS"),
-        ("pos_cors_origins", "http://localhost:5174", "exact HTTPS"),
+        ("authorized_parties", "https://*.example.com", "exact HTTPS"),
+        ("authorized_parties", "http://localhost:5174", "exact HTTPS"),
         ("database_url", "postgresql://neondb_owner:secret@host/db", "shopdesk_app"),
         ("db_echo", True, "DB_ECHO"),
         ("clerk_publishable_key", "pk_test_demo", "publishable"),
@@ -120,3 +117,36 @@ def test_production_guards(rsa_public_pem, field, value, message):
 
 def test_valid_production_config(rsa_public_pem):
     assert make(**prod_values(rsa_public_pem)).app_env == "production"
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        "ADMIN_AUTHORIZED_PARTIES",
+        "POS_AUTHORIZED_PARTIES",
+        "ADMIN_CORS_ORIGINS",
+        "POS_CORS_ORIGINS",
+        "SHOPDESK_SERVER",
+    ],
+)
+def test_legacy_names_raise_clear_error(monkeypatch, old):
+    monkeypatch.setenv(old, "old-value")
+    with pytest.raises(ValidationError, match=old + " was replaced"):
+        make()
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:5173",
+        "https://*.example.com",
+        "https://shop.example.com/path",
+        "https://user:pass@shop.example.com",
+        "",
+    ],
+)
+def test_production_requires_exact_app_origin(rsa_public_pem, origin):
+    values = prod_values(rsa_public_pem)
+    values["authorized_parties"] = origin
+    with pytest.raises(ValidationError, match="exact HTTPS"):
+        make(**values)

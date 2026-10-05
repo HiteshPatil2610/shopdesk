@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.schemas.products import PricingPreviewIn, PricingSettingsIn
 from core.security import current_actor, require_role
 from core.services import pricing_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("pricing", __name__, url_prefix="/api/pricing")
+bp = area_blueprint("admin", "pricing", "/pricing")
 
 
 @bp.post("/preview")

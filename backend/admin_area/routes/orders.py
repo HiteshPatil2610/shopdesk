@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.schemas.audit import AuditQuery
@@ -10,8 +10,9 @@ from core.schemas.orders import OrderListQuery, StockAdjustRequest
 from core.security import current_actor, require_role
 from core.serializers import admin_order_out, movement_out, page_out, product_out
 from core.services import audit_view_service, order_service, stock_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("orders", __name__, url_prefix="/api")
+bp = area_blueprint("admin", "orders", "")
 
 STAFF = ("admin", "manager")
 

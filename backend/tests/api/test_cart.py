@@ -11,13 +11,11 @@ from tests.api.test_products import create
 pytestmark = pytest.mark.db
 
 
-def test_quote_prices_merging_and_no_writes(dbs, admin_client, pos_client, as_role):
+def test_quote_prices_merging_and_no_writes(dbs, client, as_role):
     headers = as_role("admin")
-    bottle = create(admin_client, headers, market_price="300", selling_price="265").get_json()[
-        "product"
-    ]
+    bottle = create(client, headers, market_price="300", selling_price="265").get_json()["product"]
     notebook = create(
-        admin_client,
+        client,
         headers,
         name="Notebook",
         cost_price="50",
@@ -25,8 +23,8 @@ def test_quote_prices_merging_and_no_writes(dbs, admin_client, pos_client, as_ro
         selling_price="75",
         quantity=9,
     ).get_json()["product"]
-    pos_client.post(
-        "/api/cart/quote",
+    client.post(
+        "/api/pos/cart/quote",
         headers=as_role("cashier", pos=True),
         json={"items": [], "discount_applied": False},
     )
@@ -38,8 +36,8 @@ def test_quote_prices_merging_and_no_writes(dbs, admin_client, pos_client, as_ro
         {"code": notebook["code"], "qty": 1},
     ]
     for discount, total, saving in [(False, "685.00", "0.00"), (True, "605.00", "80.00")]:
-        response = pos_client.post(
-            "/api/cart/quote",
+        response = client.post(
+            "/api/pos/cart/quote",
             headers=as_role("cashier", pos=True),
             json={"items": items, "discount_applied": discount, "total": "1.00"},
         )
@@ -63,8 +61,8 @@ def test_quote_prices_merging_and_no_writes(dbs, admin_client, pos_client, as_ro
     assert dbs.get(Product, bottle["id"]).quantity == 14
 
 
-def test_quote_problem_statuses_and_empty(dbs, admin_client, as_role):
-    product = create(admin_client, as_role("admin")).get_json()["product"]
+def test_quote_problem_statuses_and_empty(dbs, client, as_role):
+    product = create(client, as_role("admin")).get_json()["product"]
     result = quote(
         [QuoteItem(code=product["code"], qty=20), QuoteItem(code="UNKNOWN", qty=1)], True
     )
@@ -77,51 +75,51 @@ def test_quote_problem_statuses_and_empty(dbs, admin_client, as_role):
 
 
 @pytest.mark.parametrize("qty", [0, -1, 10001, True, 1.5, "2"])
-def test_quote_rejects_invalid_quantity(dbs, pos_client, as_role, qty):
-    response = pos_client.post(
-        "/api/cart/quote",
+def test_quote_rejects_invalid_quantity(dbs, client, as_role, qty):
+    response = client.post(
+        "/api/pos/cart/quote",
         headers=as_role("cashier", pos=True),
         json={"discount_applied": False, "items": [{"code": "P00001", "qty": qty}]},
     )
     assert response.status_code == 400
 
 
-def test_quote_limits_and_unauthenticated(dbs, pos_client, as_role):
+def test_quote_limits_and_unauthenticated(dbs, client, as_role):
     base = {"discount_applied": False, "items": [{"code": "P00001", "qty": 1}] * 101}
     assert (
-        pos_client.post(
-            "/api/cart/quote", headers=as_role("cashier", pos=True), json=base
+        client.post(
+            "/api/pos/cart/quote", headers=as_role("cashier", pos=True), json=base
         ).status_code
         == 400
     )
     base["items"] = [{"code": "P00001", "qty": 6000}] * 2
     assert (
-        pos_client.post(
-            "/api/cart/quote", headers=as_role("cashier", pos=True), json=base
+        client.post(
+            "/api/pos/cart/quote", headers=as_role("cashier", pos=True), json=base
         ).status_code
         == 400
     )
-    assert pos_client.post("/api/cart/quote", json=base).status_code == 401
+    assert client.post("/api/pos/cart/quote", json=base).status_code == 401
 
 
 @pytest.mark.parametrize("role", ["admin", "manager", "cashier"])
-def test_quote_staff_roles(dbs, pos_client, as_role, role):
-    response = pos_client.post(
-        "/api/cart/quote",
+def test_quote_staff_roles(dbs, client, as_role, role):
+    response = client.post(
+        "/api/pos/cart/quote",
         headers=as_role(role, pos=True),
         json={"discount_applied": False, "items": []},
     )
     assert response.status_code == 200
 
 
-def test_quote_accepts_lowercase_codes(dbs, admin_client, pos_client, as_role):
-    code = admin_client.post(
-        "/api/products",
+def test_quote_accepts_lowercase_codes(dbs, client, as_role):
+    code = client.post(
+        "/api/admin/products",
         headers=as_role("manager"),
         json={"name": "Cup", "cost_price": "50", "quantity": "3"},
     ).get_json()["product"]["code"]
-    res = pos_client.post(
-        "/api/cart/quote",
+    res = client.post(
+        "/api/pos/cart/quote",
         headers=as_role("cashier", pos=True),
         json={"discount_applied": False, "items": [{"code": code.lower(), "qty": 1}]},
     )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.errors import ValidationError
@@ -10,8 +10,9 @@ from core.schemas.products import ProductListQuery
 from core.security import require_role
 from core.serializers import page_out, pos_product_out
 from core.services import product_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("pos_products", __name__, url_prefix="/api/products")
+bp = area_blueprint("pos", "pos_products", "/products")
 
 ANY_STAFF = ("admin", "manager", "cashier")
 

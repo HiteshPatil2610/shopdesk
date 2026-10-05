@@ -5,15 +5,16 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Literal
 
-from flask import Blueprint, Response, jsonify, request, stream_with_context
+from flask import Response, jsonify, request, stream_with_context
 from flask.typing import ResponseReturnValue
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.security import current_actor, require_role
 from core.services import report_service
 from core.timeutil import shop_today
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("reports", __name__, url_prefix="/api/reports")
+bp = area_blueprint("admin", "reports", "/reports")
 
 STAFF = ("admin", "manager")
 MAX_DAYS = 366

@@ -1,13 +1,14 @@
 """Read-only cart quotes for authenticated staff."""
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.schemas.orders import QuoteRequest
 from core.security import require_role
 from core.services import order_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("pos_cart", __name__, url_prefix="/api/cart")
+bp = area_blueprint("pos", "pos_cart", "/cart")
 
 
 @bp.post("/quote")

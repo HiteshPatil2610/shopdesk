@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from typing import cast
+
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.errors import ValidationError
@@ -10,8 +12,9 @@ from core.schemas.products import CategoryCreate, ProductCreate, ProductListQuer
 from core.security import current_actor, require_role
 from core.serializers import category_out, page_out, product_out
 from core.services import product_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("products", __name__, url_prefix="/api")
+bp = area_blueprint("admin", "products", "")
 
 STAFF = ("admin", "manager")
 
@@ -20,7 +23,7 @@ def _image_bytes() -> bytes | None:
     file = request.files.get("image")
     if file is None or not file.filename:
         return None
-    return file.read()
+    return cast(bytes, file.read())
 
 
 @bp.get("/categories")

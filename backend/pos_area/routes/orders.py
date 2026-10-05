@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import current_app, jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.config import Settings
@@ -10,8 +10,9 @@ from core.schemas.orders import ConfirmRequest, RejectRequest
 from core.security import current_actor, require_role
 from core.serializers import pos_order_out, receipt_out
 from core.services import order_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("pos_orders", __name__, url_prefix="/api/orders")
+bp = area_blueprint("pos", "pos_orders", "/orders")
 
 ANY_STAFF = ("admin", "manager", "cashier")
 

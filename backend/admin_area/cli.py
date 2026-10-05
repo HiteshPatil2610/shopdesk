@@ -1,4 +1,4 @@
-"""Admin CLI commands:  flask --app admin_api <command>"""
+"""Admin CLI commands:  flask --app shopdesk <command>"""
 
 from __future__ import annotations
 

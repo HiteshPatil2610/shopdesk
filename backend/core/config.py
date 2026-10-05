@@ -6,9 +6,10 @@ Every variable is documented in SETUP_GUIDE.md §7. When adding one, also add it
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from urllib.parse import parse_qs, urlsplit
 
 from pydantic import Field, field_validator, model_validator
@@ -54,17 +55,12 @@ class Settings(BaseSettings):
     db_max_overflow: int = 3
     db_echo: bool = False
 
-    # Servers
-    admin_cors_origins: str = "http://localhost:5173"
-    pos_cors_origins: str = "http://localhost:5174"
-
     # Clerk (required in production; specs 02+ use them)
     clerk_publishable_key: str | None = None
     clerk_secret_key: str | None = None
     clerk_jwt_key: str | None = None
     clerk_webhook_signing_secret: str | None = None
-    admin_authorized_parties: str = "http://localhost:5173"
-    pos_authorized_parties: str = "http://localhost:5174"
+    authorized_parties: str = "http://localhost:5173"
 
     # Cloudinary
     cloudinary_url: str | None = None
@@ -80,6 +76,22 @@ class Settings(BaseSettings):
     shop_phone: str = ""
     shop_gstin: str = ""
     receipt_footer: str = "Thank you! Visit again"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_settings(cls, values: object) -> object:
+        legacy = {
+            "ADMIN_AUTHORIZED_PARTIES": "AUTHORIZED_PARTIES",
+            "POS_AUTHORIZED_PARTIES": "AUTHORIZED_PARTIES",
+            "ADMIN_CORS_ORIGINS": "same-origin requests (CORS removed)",
+            "POS_CORS_ORIGINS": "same-origin requests (CORS removed)",
+            "SHOPDESK_SERVER": "the single shopdesk app",
+        }
+        supplied = {str(k).upper() for k in values} if isinstance(values, dict) else set()
+        for old, replacement in legacy.items():
+            if old in supplied or old in os.environ:
+                raise ValueError(f"{old} was replaced by {replacement}; remove the old variable")
+        return values
 
     @field_validator("database_url", "database_url_unpooled", "test_database_url")
     @classmethod
@@ -137,16 +149,13 @@ class Settings(BaseSettings):
                 raise ValueError("Production RATELIMIT_STORAGE_URI must use rediss://")
             if self.db_echo:
                 raise ValueError("Production DB_ECHO must be false")
-            for name in (
-                "admin_cors_origins",
-                "pos_cors_origins",
-                "admin_authorized_parties",
-                "pos_authorized_parties",
-            ):
+            for name in ("authorized_parties",):
                 origins = self.split_csv(getattr(self, name))
                 if not origins or any(
                     urlsplit(origin).scheme != "https"
                     or not urlsplit(origin).hostname
+                    or urlsplit(origin).username is not None
+                    or urlsplit(origin).password is not None
                     or "*" in origin
                     or urlsplit(origin).path
                     or urlsplit(origin).query
@@ -187,5 +196,14 @@ class Settings(BaseSettings):
 
 
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
+def _environment_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # values come from the environment
+
+
+def get_settings() -> Settings:
+    """Use the factory's validated settings during requests and migrations."""
+    from flask import current_app, has_app_context
+
+    if has_app_context() and "SHOPDESK_SETTINGS" in current_app.config:
+        return cast(Settings, current_app.config["SHOPDESK_SETTINGS"])
+    return _environment_settings()

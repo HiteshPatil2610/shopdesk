@@ -1,5 +1,7 @@
 # Architecture — ShopDesk
 
+Spec 11 approved: one Flask `shopdesk` app, area role ceilings at `/api/admin` and `/api/pos`, one lazy React web app, same-origin API with no CORS. ADR A14 supersedes A1/A11/A12; one Vercel project replaces four. Business services and migrations remain unchanged. Existing DATABASE_URL_UNPOOLED and CLERK_WEBHOOK_SIGNING_SECRET names and spec 09 required CSP hosts are retained. Full tables are updated in group C.
+
 > **Platform:** managed cloud services. **Vercel** (both React apps + both Flask APIs as Python serverless functions), **Neon** (Postgres), **Clerk** (auth), **Cloudinary** (images), **GitHub** (code, CI, migrations, backups). Costs: a domain name (Clerk production mode needs one). Vercel's free **Hobby** plan is for non-commercial use only, so running the real shop on it needs **Vercel Pro** (see §12).
 
 ## 1. High-level design

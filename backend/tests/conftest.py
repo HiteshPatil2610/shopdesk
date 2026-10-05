@@ -28,13 +28,11 @@ from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.orm import scoped_session, sessionmaker  # noqa: E402
 
 from core.clerk_gateway import ClerkUserInfo, set_gateway  # noqa: E402
-from core.config import Settings, get_settings  # noqa: E402
+from core.config import Settings  # noqa: E402
 from core.db import db  # noqa: E402
 
-get_settings.cache_clear()
-
 ADMIN_ORIGIN = "http://admin.test"
-POS_ORIGIN = "http://pos.test"
+POS_ORIGIN = ADMIN_ORIGIN
 WEBHOOK_SECRET = "whsec_" + base64.b64encode(b"shopdesk-test-webhook-secret-32b").decode()
 
 
@@ -57,15 +55,20 @@ def rsa_public_pem(rsa_private_key: rsa.RSAPrivateKey) -> str:
 
 @pytest.fixture(scope="session")
 def settings(rsa_public_pem: str) -> Settings:
-    return get_settings().model_copy(
-        update={
-            "clerk_jwt_key": rsa_public_pem,
-            "admin_authorized_parties": ADMIN_ORIGIN,
-            "pos_authorized_parties": POS_ORIGIN,
-            "clerk_webhook_signing_secret": WEBHOOK_SECRET,
-            "admin_cors_origins": "http://localhost:5173",
-            "pos_cors_origins": "http://localhost:5174",
-        }
+    from dotenv import dotenv_values
+
+    from core.config import REPO_ROOT
+
+    # Read only the test database URL from local config; never use dev/main for tests.
+    local = dotenv_values(REPO_ROOT / ".env")
+    return Settings(
+        _env_file=None,
+        app_env="test",
+        database_url="postgresql://unused:unused@localhost/unused",
+        test_database_url=os.environ.get("TEST_DATABASE_URL") or local.get("TEST_DATABASE_URL"),
+        clerk_jwt_key=rsa_public_pem,
+        authorized_parties=ADMIN_ORIGIN,
+        clerk_webhook_signing_secret=WEBHOOK_SECRET,
     )
 
 
@@ -133,7 +136,7 @@ def test_db(settings: Settings) -> str:
 
     from flask_migrate import upgrade
 
-    from admin_api import create_app
+    from shopdesk import create_app
 
     app = create_app(settings)
     with app.app_context():
@@ -146,33 +149,21 @@ def test_db(settings: Settings) -> str:
 
 
 @pytest.fixture()
-def admin_app(settings: Settings):  # type: ignore[no-untyped-def]
-    from admin_api import create_app
+def app(settings: Settings):
+    from shopdesk import create_app
 
     return create_app(settings)
 
 
 @pytest.fixture()
-def pos_app(settings: Settings):  # type: ignore[no-untyped-def]
-    from pos_api import create_app
-
-    return create_app(settings)
+def client(app):
+    return app.test_client()
 
 
 @pytest.fixture()
-def admin_client(admin_app):  # type: ignore[no-untyped-def]
-    return admin_app.test_client()
-
-
-@pytest.fixture()
-def pos_client(pos_app):  # type: ignore[no-untyped-def]
-    return pos_app.test_client()
-
-
-@pytest.fixture()
-def dbs(test_db: str, admin_app) -> Iterator[Any]:  # type: ignore[no-untyped-def]
-    """Rolled-back DB session shared by both apps for one test. Yields the session."""
-    with admin_app.app_context():
+def dbs(test_db: str, app) -> Iterator[Any]:  # type: ignore[no-untyped-def]
+    """Rolled-back DB session for the single app. Yields the session."""
+    with app.app_context():
         connection = db.engine.connect()
         outer = connection.begin()
         original = db.session
@@ -263,7 +254,7 @@ def staff(dbs):  # type: ignore[no-untyped-def]
 
 @pytest.fixture()
 def as_role(staff, auth_header):  # type: ignore[no-untyped-def]
-    """as_role("manager") → admin-server headers; as_role("cashier", pos=True) → POS headers."""
+    """Staff headers always use the one app origin; pos is kept for existing test helpers."""
 
     def _headers(role: str, pos: bool = False) -> dict[str, str]:
         return auth_header(

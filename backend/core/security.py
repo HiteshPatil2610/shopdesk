@@ -16,14 +16,10 @@ from core.clerk_auth import verify_session_token
 from core.config import Settings
 from core.errors import AuthError, ForbiddenError
 from core.services import auth_service
+from shopdesk.areas import AREA_ROLES, request_area
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-# Which roles may use which server at all (AU-5).
-SERVER_ROLES: dict[str, frozenset[str]] = {
-    "admin": frozenset({"admin", "manager"}),
-    "pos": frozenset({"admin", "manager", "cashier"}),
-}
 ALL_ROLES = ("admin", "manager", "cashier")
 
 
@@ -48,10 +44,8 @@ def _client_ip() -> str | None:
 
 def authenticate() -> ActorContext:
     settings: Settings = current_app.config["SHOPDESK_SETTINGS"]
-    server: Source = current_app.config["SHOPDESK_SERVER"]
-    parties = settings.split_csv(
-        settings.admin_authorized_parties if server == "admin" else settings.pos_authorized_parties
-    )
+    server: Source = request_area() or "system"
+    parties = settings.split_csv(settings.authorized_parties)
     claims = verify_session_token(_bearer_token(), settings.clerk_jwt_key, parties)
     user = auth_service.resolve_user(claims, server)
     if not user.is_active:
@@ -68,7 +62,7 @@ def authenticate() -> ActorContext:
 
 
 def require_role(*roles: str) -> Callable[[F], F]:
-    """Allow only these roles — and never a role the current server doesn't permit."""
+    """Allow only these roles within the matched area's role ceiling."""
     unknown = set(roles) - set(ALL_ROLES)
     if unknown or not roles:
         raise ValueError(f"Bad roles for require_role: {roles}")
@@ -76,17 +70,21 @@ def require_role(*roles: str) -> Callable[[F], F]:
     def decorator(view: F) -> F:
         @wraps(view)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            server = request_area()
+            is_auth = request.endpoint == "auth.me" and roles == ALL_ROLES
+            if server is None and not is_auth:
+                raise RuntimeError("Guarded route is missing its ShopDesk area")
             actor = authenticate()
-            server = current_app.config["SHOPDESK_SERVER"]
-            allowed = set(roles) & SERVER_ROLES[server]
+            ceiling = AREA_ROLES[server] if server else frozenset(ALL_ROLES)
+            allowed = set(roles) & ceiling
             if actor.role not in allowed:
                 from core.db import db
                 from core.models import User
 
                 user = db.session.get(User, actor.user_id)
                 if user is not None:
-                    auth_service.record_role_denied(user, server, actor)
-                if actor.role not in SERVER_ROLES[server]:
+                    auth_service.record_role_denied(user, server or "system", actor)
+                if actor.role not in ceiling:
                     message = (
                         "Your account can't use the Admin Console"
                         if server == "admin"

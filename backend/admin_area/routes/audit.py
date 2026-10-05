@@ -1,13 +1,14 @@
 """Audit viewer is read-only; CSV downloads append an export event."""
 
-from flask import Blueprint, Response, jsonify, request, stream_with_context
+from flask import Response, jsonify, request, stream_with_context
 from flask.typing import ResponseReturnValue
 
 from core.schemas.audit import AuditQuery
 from core.security import current_actor, require_role
 from core.services import audit_view_service, product_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("audit", __name__, url_prefix="/api")
+bp = area_blueprint("admin", "audit", "")
 
 
 @bp.get("/audit-logs")

@@ -21,7 +21,7 @@ ignore = ["E501"]  # black owns line length
 "tests/**" = ["S101", "S105", "S106", "S311"]  # asserts, fake secrets, random data
 
 [tool.ruff.lint.isort]
-known-first-party = ["core", "admin_api", "pos_api"]
+known-first-party = ["core", "shopdesk", "admin_area", "pos_area"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -41,5 +41,5 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["core", "admin_api", "pos_api"]
+source = ["core", "shopdesk", "admin_area", "pos_area"]
 omit = ["*/migrations/*"]

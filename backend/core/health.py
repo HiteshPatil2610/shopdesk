@@ -15,7 +15,7 @@ from core.security import public
 log = logging.getLogger(__name__)
 
 
-def make_health_blueprint(server: str) -> Blueprint:
+def make_health_blueprint() -> Blueprint:
     bp = Blueprint("health", __name__)
 
     @bp.get("/api/health")
@@ -28,7 +28,7 @@ def make_health_blueprint(server: str) -> Blueprint:
             log.exception("Health check: database unreachable")
             db.session.rollback()
             db_status = "error"
-        body = {"status": "ok", "server": server, "db": db_status, "version": __version__}
+        body = {"status": "ok", "app": "shopdesk", "db": db_status, "version": __version__}
         return jsonify(body), (200 if db_status == "ok" else 503)
 
     return bp

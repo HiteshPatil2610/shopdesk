@@ -99,8 +99,8 @@ def seeded(dbs, staff, product):
     return product
 
 
-def test_summary_counts_only_confirmed_and_uses_ist_days(dbs, admin_client, as_role, seeded):
-    s = admin_client.get(f"/api/reports/summary?date={DAY}", headers=as_role("manager")).get_json()
+def test_summary_counts_only_confirmed_and_uses_ist_days(dbs, client, as_role, seeded):
+    s = client.get(f"/api/admin/reports/summary?date={DAY}", headers=as_role("manager")).get_json()
     assert s["sales_total"] == "990.00"  # 605 + 300 + 85; the 00:01 order belongs to 2 Oct
     assert s["profit_total"] == "330.00"  # 205 + 100 + 25
     assert s["discount_total"] == "80.00"
@@ -109,22 +109,22 @@ def test_summary_counts_only_confirmed_and_uses_ist_days(dbs, admin_client, as_r
     assert s["previous"]["date"] == "2026-09-30" and s["previous"]["sales_total"] == "200.00"
     assert s["change_pct"]["sales_total"] == "395.00"  # 990 vs 200
     assert s["change_pct"]["orders_confirmed"] == "200.00"  # 3 vs 1
-    next_day = admin_client.get(
-        "/api/reports/summary?date=2026-10-02", headers=as_role("manager")
+    next_day = client.get(
+        "/api/admin/reports/summary?date=2026-10-02", headers=as_role("manager")
     ).get_json()
     assert next_day["sales_total"] == "50.00"
 
 
-def test_profit_uses_snapshots_not_current_cost(dbs, admin_client, as_role, seeded):
+def test_profit_uses_snapshots_not_current_cost(dbs, client, as_role, seeded):
     seeded.cost_price = Decimal("250")  # cost changes later; history must not
     dbs.flush()
-    s = admin_client.get(f"/api/reports/summary?date={DAY}", headers=as_role("manager")).get_json()
+    s = client.get(f"/api/admin/reports/summary?date={DAY}", headers=as_role("manager")).get_json()
     assert s["profit_total"] == "330.00"
 
 
-def test_sales_by_day_is_zero_filled(dbs, admin_client, as_role, seeded):
-    items = admin_client.get(
-        "/api/reports/sales-by-day?from=2026-09-29&to=2026-10-03", headers=as_role("manager")
+def test_sales_by_day_is_zero_filled(dbs, client, as_role, seeded):
+    items = client.get(
+        "/api/admin/reports/sales-by-day?from=2026-09-29&to=2026-10-03", headers=as_role("manager")
     ).get_json()["items"]
     assert [(i["date"], i["sales_total"], i["orders"]) for i in items] == [
         ("2026-09-29", "0.00", 0),
@@ -135,9 +135,9 @@ def test_sales_by_day_is_zero_filled(dbs, admin_client, as_role, seeded):
     ]
 
 
-def test_top_products_and_cashiers(dbs, admin_client, as_role, seeded):
+def test_top_products_and_cashiers(dbs, client, as_role, seeded):
     h = as_role("manager")
-    top = admin_client.get(f"/api/reports/top-products?from={DAY}&to={DAY}", headers=h).get_json()[
+    top = client.get(f"/api/admin/reports/top-products?from={DAY}&to={DAY}", headers=h).get_json()[
         "items"
     ]
     assert top == [
@@ -150,7 +150,7 @@ def test_top_products_and_cashiers(dbs, admin_client, as_role, seeded):
             "profit": "330.00",
         }
     ]
-    people = admin_client.get(f"/api/reports/cashiers?from={DAY}&to={DAY}", headers=h).get_json()[
+    people = client.get(f"/api/admin/reports/cashiers?from={DAY}&to={DAY}", headers=h).get_json()[
         "items"
     ]
     assert [
@@ -162,7 +162,7 @@ def test_top_products_and_cashiers(dbs, admin_client, as_role, seeded):
     ]
 
 
-def test_low_stock_list(dbs, admin_client, as_role, staff):
+def test_low_stock_list(dbs, client, as_role, staff):
     dbs.add_all(
         [
             Product(
@@ -205,39 +205,37 @@ def test_low_stock_list(dbs, admin_client, as_role, staff):
     )
     dbs.flush()
     h = as_role("manager")
-    items = admin_client.get("/api/reports/low-stock", headers=h).get_json()["items"]
+    items = client.get("/api/admin/reports/low-stock", headers=h).get_json()["items"]
     assert [i["code"] for i in items] == ["P90011", "P90010"]
-    s = admin_client.get("/api/reports/summary", headers=h).get_json()
+    s = client.get("/api/admin/reports/summary", headers=h).get_json()
     assert (s["low_stock_count"], s["out_of_stock_count"]) == (2, 1)
 
 
-def test_bad_ranges_are_rejected(dbs, admin_client, as_role):
+def test_bad_ranges_are_rejected(dbs, client, as_role):
     h = as_role("manager")
     assert (
-        admin_client.get(
-            "/api/reports/sales-by-day?from=2026-10-05&to=2026-10-01", headers=h
+        client.get(
+            "/api/admin/reports/sales-by-day?from=2026-10-05&to=2026-10-01", headers=h
         ).status_code
         == 400
     )
     assert (
-        admin_client.get(
-            "/api/reports/sales-by-day?from=2024-01-01&to=2026-01-01", headers=h
+        client.get(
+            "/api/admin/reports/sales-by-day?from=2024-01-01&to=2026-01-01", headers=h
         ).status_code
         == 400
     )
 
 
-def test_cashier_has_no_access_and_pos_has_no_reports(dbs, admin_client, pos_client, as_role):
-    assert admin_client.get("/api/reports/summary", headers=as_role("cashier")).status_code == 403
+def test_cashier_has_no_access_and_pos_has_no_reports(dbs, client, as_role):
+    assert client.get("/api/admin/reports/summary", headers=as_role("cashier")).status_code == 403
     assert (
-        pos_client.get("/api/reports/summary", headers=as_role("cashier", pos=True)).status_code
+        client.get("/api/pos/reports/summary", headers=as_role("cashier", pos=True)).status_code
         == 404
     )
 
 
-def test_sales_csv_is_admin_only_audited_and_formula_safe(
-    dbs, admin_client, as_role, staff, product
-):
+def test_sales_csv_is_admin_only_audited_and_formula_safe(dbs, client, as_role, staff, product):
     add_order(
         dbs,
         staff,
@@ -248,12 +246,12 @@ def test_sales_csv_is_admin_only_audited_and_formula_safe(
         name="=HYPERLINK(evil)",
     )
     assert (
-        admin_client.get(
-            f"/api/reports/sales.csv?from={DAY}&to={DAY}", headers=as_role("manager")
+        client.get(
+            f"/api/admin/reports/sales.csv?from={DAY}&to={DAY}", headers=as_role("manager")
         ).status_code
         == 403
     )
-    res = admin_client.get(f"/api/reports/sales.csv?from={DAY}&to={DAY}", headers=as_role("admin"))
+    res = client.get(f"/api/admin/reports/sales.csv?from={DAY}&to={DAY}", headers=as_role("admin"))
     assert res.status_code == 200 and "attachment" in res.headers["Content-Disposition"]
     rows = list(csv.reader(io.StringIO(res.get_data(as_text=True).lstrip("﻿"))))
     assert rows[0][:5] == ["date", "invoice", "customer", "cashier", "code"]

@@ -13,7 +13,6 @@ svix==2.6.1
 cloudinary==1.46.2
 Flask-Limiter==4.1.1
 redis==8.1.0
-flask-cors==6.0.5
 pillow==12.3.0
 python-dotenv==1.2.4
 tzdata==2026.5  # IST dates on Windows (zoneinfo)

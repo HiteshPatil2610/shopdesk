@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
 from core.schemas.users import PasswordReset, UserCreate, UserUpdate
 from core.security import current_actor, require_role
 from core.services import user_service
+from shopdesk.areas import area_blueprint
 
-bp = Blueprint("users", __name__, url_prefix="/api/users")
+bp = area_blueprint("admin", "users", "/users")
 
 
 @bp.get("")
