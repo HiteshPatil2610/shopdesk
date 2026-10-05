@@ -2,6 +2,20 @@
 name = "shopdesk-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
+dynamic = ["dependencies"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["wsgi"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["core*", "shopdesk*", "admin_area*", "pos_area*"]
 
 [tool.black]
 line-length = 100

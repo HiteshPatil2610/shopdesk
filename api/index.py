@@ -1,4 +1,4 @@
-"""Vercel WSGI entry for the single ShopDesk deployment."""
+"""Legacy WSGI entry; Vercel services deploy backend/wsgi.py."""
 
 import sys
 from pathlib import Path

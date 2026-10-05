@@ -1,13 +1,60 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "backend": {
+      "root": "backend",
+      "framework": "flask",
+      "entrypoint": "wsgi:app",
+      "functions": {
+        "wsgi.py": {
+          "maxDuration": 10
+        }
+      }
+    },
+    "frontend": {
+      "root": "frontend/web",
+      "framework": "vite",
+      "installCommand": "npm ci --prefix ..",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "rewrites": [
+        {
+          "source": "/((?!assets(?:/|$)|src(?:/|$)|node_modules(?:/|$)|@|.*\\.[^/]+$).*)",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  },
   "rewrites": [
     {
+      "source": "/api",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "/api/index"
+      "destination": {
+        "service": "backend"
+      }
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/api",
+      "destination": "/api/health",
+      "permanent": false
+    },
+    {
+      "source": "/api/",
+      "destination": "/api/health",
+      "permanent": false
     }
   ],
   "headers": [
@@ -41,14 +88,6 @@
       ]
     }
   ],
-  "installCommand": "npm ci --prefix frontend",
-  "buildCommand": "npm run build --prefix frontend -w web",
-  "outputDirectory": "frontend/web/dist",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 10
-    }
-  },
   "regions": [
     "sin1"
   ]

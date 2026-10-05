@@ -237,7 +237,7 @@ code .env
 ```
 - `.env` holds real secrets and is **never committed**.
 - `.env.example` has **placeholders only** and **is committed**. When you add a variable, add it to both, plus `core/config.py` and this guide.
-- Both Flask servers read the same root `.env` locally. In production, each Vercel project has its own copy of the variables it needs (§11).
+- The single Flask app reads root `.env` locally. In production, both Vercel services share one project environment (§11); only `VITE_` public values belong in frontend code.
 
 ### 7.2 Variable reference
 
@@ -440,9 +440,9 @@ Running production code never receives the owner/direct or test database URL. Pr
 | First request after a break is slow (~1 s) | Neon waking from scale-to-zero. That's normal |
 | Production API takes 1–3 s on the first call after idle | Vercel serverless cold start. That's normal. If it's much slower, check for heavy imports at module level (spec 10 task 6) |
 | Image upload fails with 413 / `FUNCTION_PAYLOAD_TOO_LARGE` | The file is over Vercel's ~4.5 MB limit. Check that the browser-side resize (spec 03) runs before upload |
-| Vercel deploy: `SHOPDESK_SERVER must be 'admin' or 'pos'` | Set `SHOPDESK_SERVER` in that API project's environment variables, then redeploy |
-| Vercel API returns 404 for `/api/...` | `backend/vercel.json` rewrite is missing, or the project's Root Directory isn't `backend` |
-| Deep link like `/products` shows a Vercel 404 | The web app's `vercel.json` SPA rewrite is missing |
+| Vercel deploy: `SHOPDESK_SERVER must be 'admin' or 'pos'` | Remove the obsolete `SHOPDESK_SERVER` variable; the backend service runs `wsgi:app` |
+| Vercel API returns 404 for `/api/...` | Verify root `vercel.json` routes `/api` and `/api/(.*)` to `backend`, whose service root is `backend` and entrypoint is `wsgi:app`. The project Root Directory stays at the repo root |
+| Deep link like `/products` shows a Vercel 404 | Verify the `frontend` service root is `frontend/web` with output `dist`, and its SPA rewrite serves `/index.html` |
 | Changed a `VITE_` variable but the site didn't change | `VITE_` values are baked in at build time. Redeploy the web project |
 | Rate limits don't seem to apply in production | `RATELIMIT_STORAGE_URI` is still `memory://`. Connect Upstash Redis |
 | 401 `TOKEN_WRONG_APP` | `AUTHORIZED_PARTIES` doesn't match the exact frontend origin (scheme + host + port, no trailing slash) |

@@ -36,6 +36,8 @@ cd ..
 | http://localhost:5173/pos | Billing Counter (all staff) |
 | http://localhost:5001/api/health | Single API health |
 
+Vercel deploys two services in one project: `backend` (Flask at `/api/...`) and `frontend` (static Vite app at all other paths). Browser requests stay same-origin; there are no runtime service bindings. For platform routing checks, run `npx vercel@latest dev -L` from the repo root and `scripts/smoke.ps1 -BaseUrl http://localhost:3000`. Add that exact origin to development `AUTHORIZED_PARTIES` and Clerk before testing sign-in; the existing `scripts/dev.ps1` workflow still uses port 5173.
+
 Manual deployment instructions: [MANUAL_DEPLOYMENT.md](MANUAL_DEPLOYMENT.md). Preview and production deployment are owner actions, not yet verified.
 
 ## Checks

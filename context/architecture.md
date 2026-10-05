@@ -51,8 +51,8 @@ One Vercel project serves static assets and a Python function. No CORS permissio
 
 ```text
 ShopDesk/
-  api/index.py                  # Vercel function imports backend/shopdesk
-  requirements.txt              # -r backend/requirements.txt
+  api/index.py                  # legacy compatibility entry (not deployed)
+  requirements.txt              # legacy compatibility requirements
   .python-version               # Python 3.12
   vercel.json                   # root build, rewrites, HTML security headers
   backend/
@@ -74,7 +74,7 @@ ShopDesk/
   .github/workflows/            # CI, migrations, unchanged backups
 ```
 
-No secrets belong in frontend source or `VITE_` values. `backend/api/index.py` remains a compatibility shim; the deployed function entry is root `api/index.py`.
+No secrets belong in frontend source or `VITE_` values. `backend/api/index.py` remains a compatibility shim; the deployed backend service entry is `backend/wsgi.py`. `backend/pyproject.toml` loads pinned runtime dependencies from `backend/requirements.txt` and explicitly discovers the application packages. The frontend service root is `frontend/web`; installation runs in its parent workspace. Service routing preserves `/api/...`. There are no runtime bindings because only the browser calls the backend, through public same-origin paths.
 
 ## 4. Backend layering (strict)
 
