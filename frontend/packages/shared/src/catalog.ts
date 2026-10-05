@@ -80,16 +80,4 @@ export type PricingSettings = {
   sp_avoid_ten: boolean;
 };
 
-export const UNITS = [
-  'pcs',
-  'kg',
-  'g',
-  'l',
-  'ml',
-  'm',
-  'box',
-  'pack',
-  'pair',
-  'set',
-  'dozen',
-] as const;
+export const UNITS = ['pcs'] as const;

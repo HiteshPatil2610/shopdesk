@@ -15,6 +15,7 @@ type Props = {
 export function ImagePicker({ currentUrl, onChange, disabled }: Props) {
   const inputId = useId();
   const input = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,7 +24,7 @@ export function ImagePicker({ currentUrl, onChange, disabled }: Props) {
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
   const handle = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || disabled || busy) return;
     setError(null);
     setBusy(true);
     try {
@@ -74,8 +75,45 @@ export function ImagePicker({ currentUrl, onChange, disabled }: Props) {
         accept={ACCEPTED_TYPES.join(',')}
         className="sr-only"
         disabled={disabled || busy}
-        onChange={(e) => void handle(e.target.files?.[0])}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          void handle(file);
+        }}
       />
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        disabled={disabled || busy}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          void handle(file);
+        }}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="secondary"
+          disabled={disabled || busy}
+          onClick={() => input.current?.click()}
+        >
+          Choose photo
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={disabled || busy}
+          onClick={() => cameraInput.current?.click()}
+        >
+          Take photo
+        </Button>
+      </div>
+      <p className="text-xs text-text-muted">
+        Take a photo with your phone camera, or choose an existing image. Camera options depend on
+        your device.
+      </p>
       {shown && (
         <Button
           size="sm"

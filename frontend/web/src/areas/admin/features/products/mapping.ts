@@ -8,7 +8,7 @@ export function productToForm(p: Product): ProductFormValues {
   return {
     name: p.name,
     category_id: p.category ? String(p.category.id) : '',
-    unit: p.unit as ProductFormValues['unit'],
+    unit: 'pcs',
     barcode: p.barcode ?? '',
     description: p.description ?? '',
     quantity: String(p.quantity),

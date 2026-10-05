@@ -32,7 +32,7 @@ def _parse_money(value: object) -> Decimal:
 
 MoneyIn = Annotated[Decimal, BeforeValidator(_parse_money)]
 MpMode = Literal["primary", "alternate"]
-Unit = Literal["pcs", "kg", "g", "l", "ml", "m", "box", "pack", "pair", "set", "dozen"]
+Unit = Literal["pcs"]
 
 
 class _Strict(BaseModel):

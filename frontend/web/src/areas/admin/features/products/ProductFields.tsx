@@ -1,4 +1,4 @@
-import { Button, SelectField, TextField, UNITS, apiErrorMessage } from '@shopdesk/shared';
+import { Button, SelectField, TextField, apiErrorMessage } from '@shopdesk/shared';
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
@@ -74,9 +74,10 @@ export function ProductFields({ mode }: Props) {
         )}
       </div>
 
-      <SelectField
+      <TextField
         label="Unit"
-        options={UNITS.map((u) => ({ value: u, label: u }))}
+        readOnly
+        hint="All products are counted in pieces (pcs)."
         {...register('unit')}
       />
 
@@ -89,7 +90,8 @@ export function ProductFields({ mode }: Props) {
 
       {mode === 'create' ? (
         <TextField
-          label="Opening quantity *"
+          label="Starting stock (pcs) *"
+          hint="Pieces already in stock when you add this product. For example, enter 20 if you have 20 pieces; enter 0 if none."
           inputMode="numeric"
           error={errors.quantity?.message}
           {...register('quantity')}
