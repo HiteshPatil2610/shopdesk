@@ -2,6 +2,7 @@ import './index.css';
 
 import { ClerkProvider } from '@clerk/react';
 import { ApiProvider, ClerkConfigError } from '@shopdesk/shared';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
@@ -32,5 +33,6 @@ createRoot(rootEl).render(
     ) : (
       <ClerkConfigError appDir="web" />
     )}
+    <SpeedInsights />
   </StrictMode>,
 );
