@@ -17,7 +17,7 @@ from core.db import db, transaction
 from core.errors import AppError, BusinessRuleError, ConflictError, NotFoundError
 from core.models import User
 from core.schemas.users import PasswordReset, UserCreate, UserUpdate
-from core.services import audit_service
+from core.services import audit_service, auth_service
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,48 @@ def list_users() -> list[User]:
     return list(
         db.session.scalars(select(User).order_by(User.is_active.desc(), User.full_name)).all()
     )
+
+
+def sync_users(actor: ActorContext) -> tuple[list[User], set[str]]:
+    """Reconcile only after the complete Clerk directory has been fetched successfully."""
+    infos = get_gateway().list_users()
+    present = {info.id for info in infos}
+    # Offset pagination can shift if someone removes an account while pages load.
+    # Confirm absent ACTIVE accounts individually before disabling their access.
+    for user in list_users():
+        if user.is_active and user.clerk_user_id not in present:
+            try:
+                info = get_gateway().get_user(user.clerk_user_id)
+            except NotFoundError:
+                continue
+            infos.append(info)
+            present.add(info.id)
+    if actor.clerk_user_id not in present:
+        raise AppError(
+            "Clerk's directory does not contain your signed-in account. Check that the app's Clerk keys belong to the same instance.",
+            code="CLERK_DIRECTORY_MISMATCH",
+            status=502,
+        )
+    system = ActorContext.system("clerk-directory")
+    with transaction():
+        for info in infos:
+            auth_service.upsert_from_clerk(info, system)
+        deleted = set()
+        for user in list_users():
+            if user.clerk_user_id not in present:
+                deleted.add(user.clerk_user_id)
+                if user.is_active:
+                    user.is_active = False
+                    audit_service.record(
+                        system,
+                        "user.deactivate",
+                        "user",
+                        user.id,
+                        f"{user.display_name} was deleted in Clerk",
+                        changes={"is_active": [True, False]},
+                        metadata={"via": "directory"},
+                    )
+    return list_users(), deleted
 
 
 def _get(user_id: int) -> User:
@@ -53,12 +95,18 @@ def _guard_last_admin(user: User, *, removing_admin: bool) -> None:
 
 
 def create_user(data: UserCreate, actor: ActorContext) -> User:
-    taken = db.session.scalar(select(User.id).where(func.lower(User.username) == data.username))
+    taken = db.session.scalar(
+        select(User.id).where(func.lower(User.username) == data.username, User.is_active)
+    )
     if taken:
         raise ConflictError("That username is already taken", code="USERNAME_TAKEN")
 
     info = get_gateway().create_user(
-        username=data.username, password=data.password, full_name=data.full_name, role=data.role
+        username=data.username,
+        password=data.password,
+        full_name=data.full_name,
+        role=data.role,
+        email=data.email,
     )
     with transaction():
         user = User(
@@ -88,20 +136,27 @@ def update_user(user_id: int, data: UserUpdate, actor: ActorContext) -> User:
             raise BusinessRuleError("You can't change your own admin role", code="SELF_DEMOTE")
         _guard_last_admin(user, removing_admin=True)
 
-    before = {"full_name": user.full_name, "role": user.role}
-    after = {"full_name": data.full_name or user.full_name, "role": data.role or user.role}
+    before = {"full_name": user.full_name, "role": user.role, "email": user.email}
+    after = {
+        "full_name": data.full_name or user.full_name,
+        "role": data.role or user.role,
+        "email": data.email or user.email,
+    }
     changes = audit_service.diff(before, after)
     if not changes:
         return user
 
     gateway = get_gateway()
     if "role" in changes:
-        gateway.set_role(user.clerk_user_id, after["role"])
+        gateway.set_role(user.clerk_user_id, data.role or user.role)
     if "full_name" in changes:
-        gateway.set_name(user.clerk_user_id, after["full_name"])
+        gateway.set_name(user.clerk_user_id, data.full_name or user.full_name)
+    if "email" in changes and after["email"]:
+        gateway.set_email(user.clerk_user_id, after["email"])
 
     with transaction():
-        user.full_name, user.role = after["full_name"], after["role"]
+        user.full_name, user.role = data.full_name or user.full_name, data.role or user.role
+        user.email = after["email"]
         audit_service.record(
             actor,
             "user.update",

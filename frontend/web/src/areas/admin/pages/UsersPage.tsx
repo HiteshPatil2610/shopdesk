@@ -20,6 +20,7 @@ import {
 } from '../features/users/api';
 import { AddUserModal } from '../features/users/AddUserModal';
 import { ResetPasswordModal } from '../features/users/ResetPasswordModal';
+import { EmailUserModal } from '../features/users/EmailUserModal';
 
 const lastSeen = (iso: string | null) =>
   iso
@@ -41,6 +42,9 @@ export function UsersPage() {
   const [details, setDetails] = useState<AdminUser | null>(null);
   const [resetting, setResetting] = useState<UserPublic | null>(null);
   const [confirming, setConfirming] = useState<UserPublic | null>(null);
+  const [includeInactive, setIncludeInactive] = useState(false);
+  const [editingEmail, setEditingEmail] = useState<AdminUser | null>(null);
+  const visibleUsers = users.data?.filter((user) => includeInactive || user.is_active) ?? [];
   const actionError = updateUser.error ?? setActive.error ?? revokeSessions.error;
 
   return (
@@ -52,8 +56,29 @@ export function UsersPage() {
             Staff accounts for both apps. Cashiers can only use the Billing Counter.
           </p>
         </div>
-        <Button onClick={() => setAdding(true)}>+ Add user</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            disabled={users.isFetching}
+            onClick={() => void users.refetch()}
+          >
+            {users.isFetching ? 'Refreshing…' : 'Refresh from Clerk'}
+          </Button>
+          <Button onClick={() => setAdding(true)}>+ Add user</Button>
+        </div>
       </div>
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={includeInactive}
+          onChange={(event) => setIncludeInactive(event.target.checked)}
+        />
+        Show inactive and deleted accounts
+      </label>
+      <p className="text-xs text-text-muted">
+        Updates from Clerk refresh every minute. Deactivation blocks sign-in; past orders and audit
+        records are kept.
+      </p>
 
       {actionError && (
         <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -86,7 +111,7 @@ export function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.data.map((u) => {
+              {visibleUsers.map((u) => {
                 const isMe = u.id === me.id;
                 return (
                   <tr key={u.id} className="border-b border-border last:border-0">
@@ -106,7 +131,7 @@ export function UsersPage() {
                         <select
                           aria-label={`Role for ${u.full_name}`}
                           value={u.role}
-                          disabled={updateUser.isPending}
+                          disabled={updateUser.isPending || u.deleted_in_clerk}
                           onChange={(e) =>
                             updateUser.mutate({ id: u.id, role: e.target.value as Role })
                           }
@@ -119,7 +144,9 @@ export function UsersPage() {
                       )}
                     </td>
                     <td data-label="Status" className="px-4 py-3">
-                      {u.is_active ? (
+                      {u.deleted_in_clerk ? (
+                        <Badge tone="danger">Deleted in Clerk</Badge>
+                      ) : u.is_active ? (
                         <Badge tone="success">Active</Badge>
                       ) : (
                         <Badge tone="danger">Deactivated</Badge>
@@ -133,12 +160,26 @@ export function UsersPage() {
                         <Button size="sm" variant="secondary" onClick={() => setDetails(u)}>
                           View details
                         </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setResetting(u)}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={u.deleted_in_clerk}
+                          onClick={() => setEditingEmail(u)}
+                        >
+                          Set email
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={u.deleted_in_clerk}
+                          onClick={() => setResetting(u)}
+                        >
                           Reset password
                         </Button>
                         <Button
                           size="sm"
                           variant="secondary"
+                          disabled={u.deleted_in_clerk}
                           onClick={() => {
                             revokeSessions.reset();
                             setSigningOut(u);
@@ -147,6 +188,7 @@ export function UsersPage() {
                           Sign out all devices
                         </Button>
                         {!isMe &&
+                          !u.deleted_in_clerk &&
                           (u.is_active ? (
                             <Button size="sm" variant="danger" onClick={() => setConfirming(u)}>
                               Deactivate
@@ -165,12 +207,26 @@ export function UsersPage() {
                   </tr>
                 );
               })}
+              {!visibleUsers.length && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-text-muted">
+                    No accounts match this view.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
       </div>
 
       <AddUserModal open={adding} onClose={() => setAdding(false)} />
+      {editingEmail && (
+        <EmailUserModal
+          key={editingEmail.id}
+          user={editingEmail}
+          onClose={() => setEditingEmail(null)}
+        />
+      )}
       <Modal
         open={signingOut !== null}
         title="Sign out all devices?"
@@ -260,7 +316,8 @@ export function UsersPage() {
       >
         <p className="text-sm">
           <strong>{confirming?.full_name}</strong> will be signed out everywhere and won't be able
-          to sign in until reactivated. Their past orders stay in the records.
+          to sign in until reactivated. The account remains in Clerk as banned. Their past orders
+          stay in the records.
         </p>
       </Modal>
     </section>

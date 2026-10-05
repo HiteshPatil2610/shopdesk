@@ -13,6 +13,26 @@ from shopdesk.areas import area_blueprint
 bp = area_blueprint("admin", "users", "/users")
 
 
+@bp.post("/sync")
+@require_role("admin")
+def sync_users() -> ResponseReturnValue:
+    users, deleted = user_service.sync_users(current_actor())
+    return jsonify(
+        {
+            "items": [
+                {
+                    **u.to_public(),
+                    "clerk_user_id": u.clerk_user_id,
+                    "created_at": u.created_at.isoformat() if u.created_at else None,
+                    "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+                    "deleted_in_clerk": u.clerk_user_id in deleted,
+                }
+                for u in users
+            ]
+        }
+    )
+
+
 @bp.get("")
 @require_role("admin")
 def list_users() -> ResponseReturnValue:

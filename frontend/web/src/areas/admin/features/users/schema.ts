@@ -10,6 +10,7 @@ export const newUserSchema = z
       .max(50)
       .regex(/^[a-zA-Z0-9_.-]+$/, 'Letters, numbers, dot, dash or underscore only'),
     full_name: z.string().trim().min(2, 'Enter the full name').max(120),
+    email: z.union([z.email('Enter a valid email address').max(254), z.literal('')]).optional(),
     role: z.enum(['admin', 'manager', 'cashier']),
     password: z.string().min(10, 'At least 10 characters').max(128),
   })

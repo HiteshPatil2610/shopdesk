@@ -3,6 +3,7 @@ import json
 import pytest
 from sqlalchemy import select
 
+from core.clerk_gateway import ClerkUserInfo
 from core.models import AuditLog, User
 
 pytestmark = pytest.mark.db
@@ -202,3 +203,96 @@ def test_list_users(dbs, client, as_owner):
 def test_unknown_user_is_404(dbs, client, as_owner, fake_clerk):
     res = client.post("/api/admin/users/999999/ban", headers=as_owner)
     assert res.status_code == 404
+
+
+def seed_clerk_owner(fake_clerk):
+    fake_clerk.users["user_owner"] = ClerkUserInfo(
+        "user_owner", "owner", None, "Owner", "admin", False
+    )
+
+
+def test_directory_refresh_updates_email_and_archives_deleted_users(
+    dbs, client, as_owner, fake_clerk
+):
+    seed_clerk_owner(fake_clerk)
+    staff = User(clerk_user_id="user_staff", username="staff", full_name="Staff", role="cashier")
+    deleted = User(
+        clerk_user_id="user_deleted", username="deleted", full_name="Deleted", role="cashier"
+    )
+    dbs.add_all([staff, deleted])
+    dbs.flush()
+    fake_clerk.users["user_staff"] = ClerkUserInfo(
+        "user_staff", "staff", "staff@example.com", "Staff Updated", "cashier", False
+    )
+    response = client.post("/api/admin/users/sync", headers=as_owner)
+    assert response.status_code == 200
+    items = {u["clerk_user_id"]: u for u in response.get_json()["items"]}
+    assert items["user_staff"]["email"] == "staff@example.com"
+    assert items["user_staff"]["full_name"] == "Staff Updated"
+    assert items["user_deleted"]["is_active"] is False
+    assert items["user_deleted"]["deleted_in_clerk"] is True
+    assert dbs.get(User, deleted.id) is not None  # Preserve historical FK references.
+    response = client.post("/api/admin/users/sync", headers=as_owner)
+    assert response.status_code == 200
+    assert len(dbs.scalars(select(AuditLog).where(AuditLog.action == "user.deactivate")).all()) == 1
+
+
+def test_incomplete_directory_does_not_disable_existing_account(
+    dbs, client, as_owner, fake_clerk, monkeypatch
+):
+    seed_clerk_owner(fake_clerk)
+    staff = User(clerk_user_id="user_staff", username="staff", full_name="Staff", role="cashier")
+    dbs.add(staff)
+    dbs.flush()
+    fake_clerk.users["user_staff"] = ClerkUserInfo(
+        "user_staff", "staff", None, "Staff", "cashier", False
+    )
+    monkeypatch.setattr(fake_clerk, "list_users", lambda: [fake_clerk.users["user_owner"]])
+    assert client.post("/api/admin/users/sync", headers=as_owner).status_code == 200
+    assert staff.is_active
+
+
+def test_clerk_failure_leaves_directory_unchanged(
+    dbs, client, as_owner, owner, fake_clerk, monkeypatch
+):
+    from core.errors import AppError
+
+    def fail():
+        raise AppError("Clerk unavailable", status=502)
+
+    monkeypatch.setattr(fake_clerk, "list_users", fail)
+    assert client.post("/api/admin/users/sync", headers=as_owner).status_code == 502
+    assert owner.is_active
+
+
+@pytest.mark.parametrize("role", ["manager", "cashier"])
+def test_directory_sync_is_admin_only(dbs, client, as_role, fake_clerk, role):
+    assert client.post("/api/admin/users/sync", headers=as_role(role)).status_code == 403
+    assert not fake_clerk.calls
+
+
+def test_user_email_create_and_update_are_mirrored(dbs, client, as_owner, fake_clerk):
+    response = client.post(
+        "/api/admin/users",
+        headers=as_owner,
+        json={
+            "username": "emailstaff",
+            "full_name": "Email Staff",
+            "role": "cashier",
+            "password": "counter-pass-01",
+            "email": "staff@example.com",
+        },
+    )
+    assert response.status_code == 201
+    user = response.get_json()["user"]
+    assert user["email"] == "staff@example.com"
+    response = client.patch(
+        f"/api/admin/users/{user['id']}", headers=as_owner, json={"email": "updated@example.com"}
+    )
+    assert response.status_code == 200
+    assert response.get_json()["user"]["email"] == "updated@example.com"
+    assert ("set_email", ("user_new1", "updated@example.com")) in fake_clerk.calls
+    response = client.patch(
+        f"/api/admin/users/{user['id']}", headers=as_owner, json={"email": "not-an-email"}
+    )
+    assert response.status_code == 400

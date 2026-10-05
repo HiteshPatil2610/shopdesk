@@ -160,7 +160,7 @@ def upsert_from_clerk(info: ClerkUserInfo, actor: ActorContext) -> User | None:
         "username": info.username,
         "email": info.email,
         "full_name": info.full_name[:120],
-        "is_active": not info.banned,
+        "is_active": not info.banned and info.role in ROLES,
     }
     changes = audit_service.diff(before, after)
     if changes:

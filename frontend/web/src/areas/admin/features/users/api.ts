@@ -1,11 +1,18 @@
 import { useApi, type Role, type UserPublic } from '@shopdesk/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export type NewUser = { username: string; full_name: string; role: Role; password: string };
+export type NewUser = {
+  username: string;
+  full_name: string;
+  role: Role;
+  password: string;
+  email?: string;
+};
 export type AdminUser = UserPublic & {
   clerk_user_id: string;
   created_at: string | null;
   updated_at: string | null;
+  deleted_in_clerk?: boolean;
 };
 
 const KEY = ['users'];
@@ -22,7 +29,9 @@ export function useUsers() {
   const api = useApi();
   return useQuery({
     queryKey: KEY,
-    queryFn: async () => (await api.get<{ items: AdminUser[] }>('/users')).data.items,
+    queryFn: async () => (await api.post<{ items: AdminUser[] }>('/users/sync')).data.items,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -44,8 +53,15 @@ export function useUpdateUser() {
   const api = useApi();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: number; role?: Role; full_name?: string }) =>
-      (await api.patch(`/users/${id}`, data)).data,
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: number;
+      role?: Role;
+      full_name?: string;
+      email?: string;
+    }) => (await api.patch(`/users/${id}`, data)).data,
     onSuccess: invalidate,
   });
 }

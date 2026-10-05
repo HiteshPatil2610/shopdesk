@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiErrorMessage, Button, Modal, SelectField, TextField } from '@shopdesk/shared';
 import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 
 import { useCreateUser } from './api';
 import { newUserSchema, type NewUserForm } from './schema';
@@ -15,6 +16,7 @@ type Props = { open: boolean; onClose: () => void };
 
 export function AddUserModal({ open, onClose }: Props) {
   const create = useCreateUser();
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -28,12 +30,17 @@ export function AddUserModal({ open, onClose }: Props) {
   const close = () => {
     reset();
     create.reset();
+    setShowPassword(false);
     onClose();
   };
 
   const onSubmit = handleSubmit(async (data) => {
-    await create.mutateAsync(data);
-    close();
+    try {
+      await create.mutateAsync({ ...data, email: data.email || undefined });
+      close();
+    } catch {
+      /* The mutation error stays visible in the form. */
+    }
   });
 
   return (
@@ -61,6 +68,14 @@ export function AddUserModal({ open, onClose }: Props) {
           {...register('username')}
         />
         <TextField label="Full name" error={errors.full_name?.message} {...register('full_name')} />
+        <TextField
+          label="Email (optional)"
+          type="email"
+          autoComplete="off"
+          hint="Primary sign-in and recovery email. Check the address carefully."
+          error={errors.email?.message}
+          {...register('email')}
+        />
         <SelectField
           label="Role"
           options={ROLE_OPTIONS}
@@ -69,12 +84,19 @@ export function AddUserModal({ open, onClose }: Props) {
         />
         <TextField
           label="Temporary password"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           autoComplete="new-password"
           hint="At least 10 characters. Share it with them privately."
           error={errors.password?.message}
           {...register('password')}
         />
+        <Button
+          variant="secondary"
+          aria-pressed={showPassword}
+          onClick={() => setShowPassword((value) => !value)}
+        >
+          {showPassword ? 'Hide password' : 'Show password'}
+        </Button>
         {create.isError && (
           <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
             {apiErrorMessage(create.error)}

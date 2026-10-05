@@ -189,17 +189,25 @@ class FakeGateway:
 
     def get_user(self, user_id: str) -> ClerkUserInfo:
         self.calls.append(("get_user", (user_id,)))
+        if user_id not in self.users:
+            from core.errors import NotFoundError
+
+            raise NotFoundError("Clerk user not found", code="CLERK_USER_NOT_FOUND")
         return self.users[user_id]
 
+    def list_users(self) -> list[ClerkUserInfo]:
+        self.calls.append(("list_users", ()))
+        return list(self.users.values())
+
     def create_user(
-        self, *, username: str, password: str, full_name: str, role: str
+        self, *, username: str, password: str, full_name: str, role: str, email: str | None = None
     ) -> ClerkUserInfo:
         self.counter += 1
         self.calls.append(("create_user", (username, full_name, role)))
         info = ClerkUserInfo(
             id=f"user_new{self.counter}",
             username=username,
-            email=None,
+            email=email,
             full_name=full_name,
             role=role,
             banned=False,
@@ -212,6 +220,9 @@ class FakeGateway:
 
     def set_name(self, user_id: str, full_name: str) -> None:
         self.calls.append(("set_name", (user_id, full_name)))
+
+    def set_email(self, user_id: str, email: str) -> None:
+        self.calls.append(("set_email", (user_id, email)))
 
     def reset_password(self, user_id: str, password: str) -> None:
         self.calls.append(("reset_password", (user_id,)))
