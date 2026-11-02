@@ -11,18 +11,18 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@clerk/react": "6.17.5",
-    "@hookform/resolvers": "5.9.1",
+    "@clerk/react": "6.18.3",
+    "@hookform/resolvers": "6.0.2",
     "@shopdesk/shared": "*",
-    "@tanstack/react-query": "5.104.1",
+    "@tanstack/react-query": "5.105.0",
     "@vercel/speed-insights": "2.0.0",
-    "axios": "1.20.0",
-    "chart.js": "4.5.1",
-    "react": "19.3.0",
+    "axios": "1.21.0",
+    "chart.js": "4.6.1",
+    "react": "19.3.1",
     "react-chartjs-2": "5.3.1",
-    "react-dom": "19.3.0",
-    "react-hook-form": "7.89.0",
-    "react-router": "8.4.0",
-    "zod": "4.6.5"
+    "react-dom": "19.3.1",
+    "react-hook-form": "7.91.0",
+    "react-router": "8.5.1",
+    "zod": "4.6.7"
   }
 }
